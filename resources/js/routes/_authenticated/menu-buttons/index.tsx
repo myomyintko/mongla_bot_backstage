@@ -5,7 +5,7 @@ import { statuses, hierarchyTypes, buttonTypes } from '@/features/menu-buttons/d
 
 const menuButtonsSearchSchema = z.object({
   page: z.number().optional().catch(1),
-  pageSize: z.number().optional().catch(10),
+  per_page: z.number().optional().catch(10),
   status: z
     .array(z.enum(statuses.map((status) => status.value)))
     .optional()
@@ -15,9 +15,9 @@ const menuButtonsSearchSchema = z.object({
     .optional()
     .catch([]),
   hierarchy: z
-    .enum(hierarchyTypes.map((type) => type.value))
+    .array(z.enum(hierarchyTypes.map((type) => type.value)))
     .optional()
-    .catch('all'),
+    .catch([]),
   filter: z.string().optional().catch(''),
 })
 

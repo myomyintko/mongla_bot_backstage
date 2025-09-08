@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\MenuButton;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class MenuButtonSeeder extends Seeder
@@ -128,7 +127,7 @@ class MenuButtonSeeder extends Seeder
                 MenuButton::create([
                     'parent_id' => $parentMenu->id,
                     'name' => $subMenu[0] . ' ' . $subMenu[1],
-                    'button_type' => 'action',
+                    'button_type' => 'store',
                     'sort' => $index + 1,
                     'status' => 1,
                     'enable_template' => false,

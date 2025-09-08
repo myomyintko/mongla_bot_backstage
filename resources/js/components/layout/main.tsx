@@ -18,7 +18,8 @@ export function Main({ fixed, className, fluid, ...props }: MainProps) {
 
         // If layout is not fluid, set the max-width
         !fluid &&
-          '@7xl/content:mx-auto @7xl/content:w-full @7xl/content:max-w-7xl',
+          // '@7xl/content:mx-auto @7xl/content:w-full @7xl/content:max-w-7xl',
+          !fluid && 'mx-auto w-full max-w-[1600px]',
         className
       )}
       {...props}

@@ -43,7 +43,7 @@ class StoreFactory extends Factory
             'address' => fake()->address(),
             'recommand' => fake()->boolean(30), // 30% chance of being recommended
             'sub_btns' => null,
-            'menu_button_id' => MenuButton::factory(),
+            'menu_button_id' => fake()->optional(0.7)->randomElement(MenuButton::pluck('id')->toArray()),
         ];
     }
 

@@ -3,7 +3,8 @@ import { type MenuButton } from '@/features/menu-buttons/data/schema'
 
 export interface MenuButtonFilters {
   status?: number
-  parent_id?: number | 'null'
+  parent_id?: number | 'null' | 'not_null'
+  button_type?: string
   search?: string
   per_page?: number
   page?: number

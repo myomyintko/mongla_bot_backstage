@@ -6,27 +6,25 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { menuButtonsService } from '@/lib/menu-buttons-service'
-import { MenuButtonsDialogs } from './components/menu-buttons-dialogs'
-import { MenuButtonsProvider } from './components/menu-buttons-provider'
-import { MenuButtonsPrimaryButtons } from './components/menu-buttons-primary-buttons'
-import { MenuButtonsTable } from './components/menu-buttons-table'
+import { storesService } from '@/lib/stores-service'
+import { StoresDialogs } from './components/stores-dialogs'
+import { StoresProvider } from './components/stores-provider'
+import { StoresPrimaryButtons } from './components/stores-primary-buttons'
+import { StoresTable } from './components/stores-table'
 
-const route = getRouteApi('/_authenticated/menu-buttons/')
+const route = getRouteApi('/_authenticated/stores/')
 
-export function MenuButtons() {
+export function Stores() {
   const search = route.useSearch()
-  const { data: menuButtonsData, isLoading, error } = useQuery({
-    queryKey: ['menu-buttons', search],
-    queryFn: () => menuButtonsService.getMenuButtons({
+  const { data: storesData, isLoading, error } = useQuery({
+    queryKey: ['stores', search],
+    queryFn: () => storesService.getStores({
       page: search.page || 1,
       per_page: search.per_page || 10,
       search: search.filter,
       status: search.status ? Number(search.status[0]) : undefined,
-      button_type: search.button_type ? search.button_type[0] : undefined,
-      parent_id: search.hierarchy && search.hierarchy.length > 0 
-        ? (search.hierarchy[0] === 'root' ? 'null' : search.hierarchy[0] === 'child' ? 'not_null' : undefined)
-        : undefined,
+      recommand: search.recommand ? search.recommand[0] === 'true' : undefined,
+      menu_button_id: search.menu_button_id ? (search.menu_button_id[0] === 'none' ? 'null' : Number(search.menu_button_id[0])) : undefined,
     }),
   })
 
@@ -42,7 +40,7 @@ export function MenuButtons() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-600">Error loading menu buttons</h2>
+          <h2 className="text-2xl font-bold text-red-600">Error loading stores</h2>
           <p className="text-gray-600">Please try again later.</p>
         </div>
       </div>
@@ -50,7 +48,7 @@ export function MenuButtons() {
   }
 
   return (
-    <MenuButtonsProvider>
+    <StoresProvider>
       <Header fixed>  
         <Search />
         <div className='ms-auto flex items-center space-x-4'>
@@ -63,27 +61,27 @@ export function MenuButtons() {
       <Main>
         <div className='mb-2 flex flex-wrap items-center justify-between space-y-2 gap-x-4'>
           <div>
-            <h2 className='text-2xl font-bold tracking-tight'>Menu Buttons</h2>
+            <h2 className='text-2xl font-bold tracking-tight'>Stores</h2>
             <p className='text-muted-foreground'>
-              Manage your menu button hierarchy and templates.
+              Manage your store hierarchy and templates.
             </p>
           </div>
-          <MenuButtonsPrimaryButtons />
+          <StoresPrimaryButtons />
         </div>
         <div className='-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-y-0 lg:space-x-12'>
-          <MenuButtonsTable 
-            data={menuButtonsData?.data || []} 
-            paginationMeta={menuButtonsData ? {
-              current_page: menuButtonsData.current_page,
-              last_page: menuButtonsData.last_page,
-              per_page: menuButtonsData.per_page,
-              total: menuButtonsData.total,
+          <StoresTable 
+            data={storesData?.data || []} 
+            paginationMeta={storesData ? {
+              current_page: storesData.current_page,
+              last_page: storesData.last_page,
+              per_page: storesData.per_page,
+              total: storesData.total,
             } : undefined}
           />
         </div>
       </Main>
 
-      <MenuButtonsDialogs />
-    </MenuButtonsProvider>
+      <StoresDialogs />
+    </StoresProvider>
   )
 }

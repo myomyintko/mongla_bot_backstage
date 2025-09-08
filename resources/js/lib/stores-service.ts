@@ -4,7 +4,7 @@ import { type Store } from '@/features/stores/data/schema'
 export interface StoreFilters {
   status?: number
   recommand?: boolean
-  menu_button_id?: number | 'null'
+  menu_button_id?: number | 'null' | 'all' | 'none'
   search?: string
   per_page?: number
   page?: number
@@ -32,7 +32,13 @@ export interface BulkUpdateData {
 
 export const storesService = {
   // Get all stores with filters
-  getStores: async (filters: StoreFilters = {}) => {
+  getStores: async (filters: StoreFilters = {}): Promise<{
+    data: Store[]
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }> => {
     const params = new URLSearchParams()
     
     Object.entries(filters).forEach(([key, value]) => {

@@ -30,11 +30,12 @@ class StoreController extends Controller
 
         // Filter by menu_button_id if provided
         if ($request->has('menu_button_id')) {
-            if ($request->menu_button_id === 'null') {
+            if ($request->menu_button_id === 'null' || $request->menu_button_id === 'none') {
                 $query->whereNull('menu_button_id');
-            } else {
+            } elseif ($request->menu_button_id !== 'all') {
                 $query->where('menu_button_id', $request->menu_button_id);
             }
+            // If 'all', don't apply any filter (show all stores)
         }
 
         // Search by name or address

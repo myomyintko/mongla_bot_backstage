@@ -23,10 +23,17 @@ class MenuButtonController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Filter by button_type if provided
+        if ($request->has('button_type')) {
+            $query->where('button_type', $request->button_type);
+        }
+
         // Filter by parent_id if provided
         if ($request->has('parent_id')) {
             if ($request->parent_id === 'null') {
                 $query->whereNull('parent_id');
+            } elseif ($request->parent_id === 'not_null') {
+                $query->whereNotNull('parent_id');
             } else {
                 $query->where('parent_id', $request->parent_id);
             }

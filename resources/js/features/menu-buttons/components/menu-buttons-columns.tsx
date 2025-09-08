@@ -120,19 +120,10 @@ export const menuButtonsColumns: ColumnDef<MenuButton>[] = [
   },
   {
     accessorKey: 'hierarchy',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Hierarchy' />
-    ),
-    cell: ({ row }) => {
-      const parentId = row.getValue('parent_id') as number | null
-      return (
-        <div className='flex items-center gap-2'>
-          <span className='text-sm text-muted-foreground'>
-            {parentId ? 'Child' : 'Root'}
-          </span>
-        </div>
-      )
-    },
+    header: () => null,
+    cell: () => null,
+    enableHiding: false,
+    enableSorting: false,
     filterFn: (row, _id, value) => {
       const parentId = row.getValue('parent_id') as number | null
       const hierarchyType = parentId ? 'child' : 'root'

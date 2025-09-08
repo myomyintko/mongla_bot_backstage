@@ -20,27 +20,48 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { useEffect, useState } from 'react'
-import { statuses, hierarchyTypes, buttonTypes } from '../data/data'
-import { type MenuButton } from '../data/schema'
+import { statuses, recommendationTypes } from '../data/data'
+import { type Store } from '../data/schema'
 import { DataTableBulkActions } from './data-table-bulk-actions'
-import { menuButtonsColumns as columns } from './menu-buttons-columns'
+import { storesColumns as columns } from './stores-columns'
+import { menuButtonsService } from '@/lib/menu-buttons-service'
+import { useQuery } from '@tanstack/react-query'
 
-const route = getRouteApi('/_authenticated/menu-buttons/')
+const route = getRouteApi('/_authenticated/stores/')
 
 type DataTableProps = {
-  data: MenuButton[]
-  paginationMeta?: {
-    current_page: number
-    last_page: number
-    per_page: number
-    total: number
-  }
+    data: Store[]
+    paginationMeta?: {
+        current_page: number
+        last_page: number
+        per_page: number
+        total: number
+    }
 }
 
-export function MenuButtonsTable({ data, paginationMeta }: DataTableProps) {
+export function StoresTable({ data, paginationMeta }: DataTableProps) {
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+
+  // Fetch menu buttons for category filter
+  const { data: menuButtonsData } = useQuery({
+    queryKey: ['menu-buttons', 'store', 'all'],
+    queryFn: () => menuButtonsService.getMenuButtons({ 
+      button_type: 'store',
+      per_page: 1000 // Fetch all store-type menu buttons
+    }),
+  })
+
+  const menuButtons = menuButtonsData?.data || []
+  const menuButtonOptions = [
+    { label: 'All Categories', value: 'all' },
+    { label: 'No Category', value: 'none' },
+    ...menuButtons.map((button) => ({
+      label: button.name,
+      value: String(button.id),
+    })),
+  ]
   const {
     globalFilter,
     onGlobalFilterChange,
@@ -61,8 +82,8 @@ export function MenuButtonsTable({ data, paginationMeta }: DataTableProps) {
     globalFilter: { enabled: true, key: 'filter' },
     columnFilters: [
       { columnId: 'status', searchKey: 'status', type: 'array' },
-      { columnId: 'button_type', searchKey: 'button_type', type: 'array' },
-      { columnId: 'hierarchy', searchKey: 'hierarchy', type: 'array' },
+      { columnId: 'recommand', searchKey: 'recommand', type: 'array' },
+      { columnId: 'menu_button_id', searchKey: 'menu_button_id', type: 'array' },
     ],
   })
 
@@ -111,14 +132,14 @@ export function MenuButtonsTable({ data, paginationMeta }: DataTableProps) {
             options: statuses,
           },
           {
-            columnId: 'button_type',
-            title: 'Type',
-            options: buttonTypes,
+            columnId: 'recommand',
+            title: 'Recommended',
+            options: recommendationTypes,
           },
           {
-            columnId: 'hierarchy',
-            title: 'Hierarchy',
-            options: hierarchyTypes,
+            columnId: 'menu_button_id',
+            title: 'Category',
+            options: menuButtonOptions,
           },
         ]}
       />
