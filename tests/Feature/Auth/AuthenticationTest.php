@@ -2,64 +2,97 @@
 
 use App\Models\User;
 
-test('login screen can be rendered', function () {
-    $response = $this->get(route('login'));
-
-    $response->assertStatus(200);
-});
-
-test('users can authenticate using the login screen', function () {
+test('users can authenticate using the API', function () {
     $user = User::factory()->create();
 
-    $response = $this->post(route('login.store'), [
+    $response = $this->postJson('/api/auth/login', [
         'email' => $user->email,
         'password' => 'password',
     ]);
 
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertStatus(200)
+        ->assertJsonStructure([
+            'user' => [
+                'id',
+                'name',
+                'email',
+                'username',
+                'email_verified_at',
+                'created_at',
+                'updated_at',
+            ],
+            'access_token',
+            'token_type',
+        ]);
+
+    $this->assertDatabaseHas('personal_access_tokens', [
+        'tokenable_id' => $user->id,
+        'tokenable_type' => User::class,
+    ]);
 });
 
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
-    $this->post(route('login.store'), [
+    $response = $this->postJson('/api/auth/login', [
         'email' => $user->email,
         'password' => 'wrong-password',
     ]);
 
-    $this->assertGuest();
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['email']);
 });
 
 test('users can logout', function () {
     $user = User::factory()->create();
+    $token = $user->createToken('test-token')->plainTextToken;
 
-    $response = $this->actingAs($user)->post(route('logout'));
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer ' . $token,
+    ])->postJson('/api/auth/logout');
 
-    $this->assertGuest();
-    $response->assertRedirect(route('home'));
+    $response->assertStatus(200)
+        ->assertJson(['message' => 'Successfully logged out']);
+
+    $this->assertDatabaseMissing('personal_access_tokens', [
+        'tokenable_id' => $user->id,
+        'tokenable_type' => User::class,
+    ]);
+});
+
+test('users can get their profile', function () {
+    $user = User::factory()->create();
+    $token = $user->createToken('test-token')->plainTextToken;
+
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer ' . $token,
+    ])->getJson('/api/auth/user');
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'username' => $user->username,
+            ],
+        ]);
 });
 
 test('users are rate limited', function () {
     $user = User::factory()->create();
 
     for ($i = 0; $i < 5; $i++) {
-        $this->post(route('login.store'), [
+        $this->postJson('/api/auth/login', [
             'email' => $user->email,
             'password' => 'wrong-password',
-        ])->assertStatus(302)->assertSessionHasErrors([
-            'email' => 'These credentials do not match our records.',
-        ]);
+        ])->assertStatus(422);
     }
 
-    $response = $this->post(route('login.store'), [
+    $response = $this->postJson('/api/auth/login', [
         'email' => $user->email,
         'password' => 'wrong-password',
     ]);
 
-    $response->assertSessionHasErrors('email');
-
-    $errors = session('errors');
-
-    $this->assertStringContainsString('Too many login attempts', $errors->first('email'));
+    $response->assertStatus(422);
 });
