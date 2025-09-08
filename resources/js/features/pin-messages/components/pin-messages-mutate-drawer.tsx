@@ -26,6 +26,7 @@ import { useForm } from 'react-hook-form'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useTheme } from '@/context/theme-provider'
 import { statuses, sortOptions } from '../data/data'
 import { PinMessage } from '../data/schema'
 import { pinMessagesService } from '@/services/pin-messages-service'
@@ -52,6 +53,7 @@ export function PinMessagesMutateDrawer({
   onOpenChange,
   currentRow,
   }: PinMessagesMutateDrawerProps) {
+  const { resolvedTheme } = useTheme()
   const isUpdate = !!currentRow
   const queryClient = useQueryClient()
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
@@ -203,7 +205,7 @@ export function PinMessagesMutateDrawer({
                        <MDEditor
                          value={field.value || ''}
                          onChange={(value) => field.onChange(value || null)}
-                         data-color-mode="light"
+                         data-color-mode={resolvedTheme}
                          height={300}
                          preview="edit"
                          hideToolbar={false}

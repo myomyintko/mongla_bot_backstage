@@ -29,6 +29,7 @@ import { useForm } from 'react-hook-form'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useTheme } from '@/context/theme-provider'
 import { buttonTypes, statuses } from '../data/data'
 import { type MenuButton } from '../data/schema'
 
@@ -57,6 +58,7 @@ export function MenuButtonsMutateDrawer({
   currentRow,
 }: MenuButtonsMutateDrawerProps) {
   const isUpdate = !!currentRow
+  const { resolvedTheme } = useTheme()
   const queryClient = useQueryClient()
   const [deletedFiles, setDeletedFiles] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
@@ -370,7 +372,7 @@ export function MenuButtonsMutateDrawer({
                       <MDEditor
                         value={field.value || ''}
                         onChange={(value) => field.onChange(value || '')}
-                        data-color-mode="light"
+                        data-color-mode={resolvedTheme}
                         height={300}
                         preview="edit"
                         hideToolbar={false}

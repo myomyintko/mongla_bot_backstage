@@ -26,6 +26,7 @@ import { useForm } from 'react-hook-form'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { useTheme } from '@/context/theme-provider'
 import { statuses, frequencyOptions } from '../data/data'
 import { Advertisement } from '../data/schema'
 import { advertisementsService } from '@/services/advertisements-service'
@@ -56,6 +57,7 @@ export function AdvertisementsMutateDrawer({
   currentRow,
 }: AdvertisementsMutateDrawerProps) {
   const isUpdate = !!currentRow
+  const { resolvedTheme } = useTheme()
   const queryClient = useQueryClient()
   const [deletedFiles, setDeletedFiles] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
@@ -284,7 +286,7 @@ export function AdvertisementsMutateDrawer({
                       <MDEditor
                         value={field.value || ''}
                         onChange={(value) => field.onChange(value || '')}
-                        data-color-mode="light"
+                        data-color-mode={resolvedTheme}
                         height={300}
                         preview="edit"
                         hideToolbar={false}
