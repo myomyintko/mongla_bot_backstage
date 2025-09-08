@@ -4,11 +4,12 @@ import { authService } from '@/services/auth-service'
 
 const ACCESS_TOKEN = 'access_token'
 
-interface AuthUser {
+export interface AuthUser {
   id: number
   name: string
   email: string
   username: string
+  avatar: string | null
   email_verified_at: string | null
   created_at: string
   updated_at: string

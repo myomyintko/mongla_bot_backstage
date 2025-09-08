@@ -86,13 +86,58 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
   {
     accessorKey: 'media_url',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Media URL' />
+      <DataTableColumnHeader column={column} title='Media' />
     ),
     cell: ({ row }) => {
       const mediaUrl = row.getValue('media_url') as string | null
+      
+      if (!mediaUrl) {
+        return <span className='text-muted-foreground'>No media</span>
+      }
+
       return (
-        <div className='max-w-[150px] truncate'>
-          {mediaUrl || 'No media URL'}
+        <div className='w-[80px] h-[80px] flex items-center justify-center relative overflow-hidden'>
+          {/* Try to show as image first */}
+          <img
+            src={mediaUrl}
+            alt="Media preview"
+            className='w-full h-full object-cover rounded cursor-pointer hover:opacity-80 transition-opacity'
+            onClick={() => window.open(mediaUrl, '_blank')}
+            onError={(e) => {
+              // If image fails to load, try video
+              e.currentTarget.style.display = 'none'
+              const videoElement = e.currentTarget.nextElementSibling as HTMLVideoElement
+              if (videoElement) {
+                videoElement.style.display = 'block'
+                videoElement.onerror = () => {
+                  // If video also fails, show button
+                  videoElement.style.display = 'none'
+                  const buttonElement = videoElement.nextElementSibling as HTMLButtonElement
+                  if (buttonElement) {
+                    buttonElement.style.display = 'block'
+                  }
+                }
+              }
+            }}
+          />
+          
+          {/* Try to show as video if image fails */}
+          <video
+            src={mediaUrl}
+            className='w-full h-full object-cover rounded cursor-pointer hidden'
+            controls={false}
+            muted
+            onClick={() => window.open(mediaUrl, '_blank')}
+          />
+          
+          {/* Fallback button - hidden by default */}
+          <button
+            onClick={() => window.open(mediaUrl, '_blank')}
+            className='text-blue-600 hover:underline cursor-pointer text-sm hidden'
+            style={{ display: 'none' }}
+          >
+            View File
+          </button>
         </div>
       )
     },

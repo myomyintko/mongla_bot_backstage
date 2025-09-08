@@ -49,7 +49,6 @@ export const sidebarData: SidebarData = {
                 {
                     title: 'Pin Messages',
                     url: '/pin-messages',
-                    badge: '3',
                     icon: PinIcon,
                 },
                 // {

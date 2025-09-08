@@ -15,6 +15,7 @@ return new class extends Migration {
             $table->string('name');
             $table->longText('description')->nullable();
             $table->string('media_url')->nullable();
+            $table->json('menu_urls')->nullable();
             $table->string('open_hour')->nullable();
             $table->string('close_hour')->nullable();
             $table->integer('status')->nullable();

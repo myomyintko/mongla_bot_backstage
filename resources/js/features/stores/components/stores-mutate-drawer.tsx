@@ -49,6 +49,7 @@ const formSchema = z.object({
   close_hour: z.string().nullable().optional(),
   recommand: z.boolean().optional(),
   media_url: z.array(z.string()).optional(),
+  menu_urls: z.array(z.string()).optional(),
   sub_btns: z.array(z.string()).nullable().optional(),
   menu_button_id: z.string().optional(),
 })
@@ -149,6 +150,7 @@ export function StoresMutateDrawer({
       close_hour: null,
       recommand: false,
       media_url: [],
+      menu_urls: [],
       sub_btns: null,
       menu_button_id: 'none',
     },
@@ -166,6 +168,7 @@ export function StoresMutateDrawer({
         close_hour: currentRow.close_hour,
         recommand: currentRow.recommand,
         media_url: currentRow.media_url && currentRow.media_url.trim() ? [currentRow.media_url] : [],
+        menu_urls: currentRow.menu_urls || [],
         sub_btns: currentRow.sub_btns,
         menu_button_id: currentRow.menu_button_id ? String(currentRow.menu_button_id) : 'none',
       } : {
@@ -177,6 +180,7 @@ export function StoresMutateDrawer({
         close_hour: null,
         recommand: false,
         media_url: [],
+        menu_urls: [],
         sub_btns: null,
         menu_button_id: 'none',
       }
@@ -197,6 +201,7 @@ export function StoresMutateDrawer({
       close_hour: data.close_hour || undefined,
       recommand: data.recommand || false,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
+      menu_urls: data.menu_urls || undefined,
       sub_btns: data.sub_btns || undefined,
       menu_button_id: data.menu_button_id && data.menu_button_id !== 'none' ? Number(data.menu_button_id) : undefined,
     }),
@@ -223,6 +228,7 @@ export function StoresMutateDrawer({
       close_hour: data.close_hour || undefined,
       recommand: data.recommand || false,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
+      menu_urls: data.menu_urls || null,
       sub_btns: data.sub_btns || undefined,
       menu_button_id: data.menu_button_id && data.menu_button_id !== 'none' ? Number(data.menu_button_id) : undefined,
     }),
@@ -429,6 +435,36 @@ export function StoresMutateDrawer({
                       showUploadList={true}
                       showDownloadButton={false}
                       uploadPath="stores"
+                      onFilesDeleted={handleFilesDeleted}
+                      onFilesUploaded={handleFilesUploaded}
+                      onPreview={(file) => {
+                        if (file.url) {
+                          window.open(file.url, '_blank');
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='menu_urls'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Menu Images</FormLabel>
+                  <FormControl>
+                    <MultiMediaUploader
+                      value={field.value || []}
+                      onChange={field.onChange}
+                      maxFiles={10}
+                      className="my-2"
+                      accept="image/*"
+                      listType="picture-card"
+                      showUploadList={true}
+                      showDownloadButton={false}
+                      uploadPath="stores/menu"
                       onFilesDeleted={handleFilesDeleted}
                       onFilesUploaded={handleFilesUploaded}
                       onPreview={(file) => {

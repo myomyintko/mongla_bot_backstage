@@ -14,10 +14,11 @@ export interface StoreCreateData {
   name: string
   description?: string | null
   media_url?: string | null
+  menu_urls?: string[] | null
   open_hour?: string | null
   close_hour?: string | null
   status?: number
-  address?: string | null
+  address?: string | null 
   recommand?: boolean
   sub_btns?: string[] | null
   menu_button_id?: number | null

@@ -16,6 +16,7 @@ class Store extends Model
         'name',
         'description',
         'media_url',
+        'menu_urls',
         'open_hour',
         'close_hour',
         'status',
@@ -28,6 +29,7 @@ class Store extends Model
     protected $casts = [
         'recommand' => 'boolean',
         'sub_btns' => 'array',
+        'menu_urls' => 'array',
         'description' => 'string',
     ];
 

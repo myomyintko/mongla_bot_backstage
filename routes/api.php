@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\AdvertisementController;
+use App\Http\Controllers\PinMessageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,4 +57,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('advertisements', AdvertisementController::class);
     Route::post('/advertisements/bulk-update', [AdvertisementController::class, 'bulkUpdate']);
     Route::post('/advertisements/bulk-delete', [AdvertisementController::class, 'bulkDelete']);
+});
+
+// Pin Messages routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('pin-messages', PinMessageController::class);
+    Route::post('/pin-messages/bulk-update', [PinMessageController::class, 'bulkUpdate']);
+    Route::post('/pin-messages/bulk-delete', [PinMessageController::class, 'bulkDelete']);
 });

@@ -85,6 +85,42 @@ export const storesColumns: ColumnDef<Store>[] = [
     },
   },
   {
+    accessorKey: 'menu_urls',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Menu Images' />
+    ),
+    cell: ({ row }) => {
+      const menuUrls = row.getValue('menu_urls') as string[] | null
+      
+      if (!menuUrls || menuUrls.length === 0) {
+        return <span className='text-muted-foreground'>No menu images</span>
+      }
+      
+      return (
+        <div className='flex gap-1 flex-wrap max-w-[200px]'>
+          {menuUrls.slice(0, 3).map((url, index) => (
+            <div key={index} className='w-[40px] h-[40px] flex items-center justify-center relative overflow-hidden'>
+              <img
+                src={url}
+                alt={`Menu image ${index + 1}`}
+                className='w-full h-full object-cover rounded cursor-pointer hover:opacity-80 transition-opacity'
+                onClick={() => window.open(url, '_blank')}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            </div>
+          ))}
+          {menuUrls.length > 3 && (
+            <div className='w-[40px] h-[40px] flex items-center justify-center bg-gray-100 rounded text-xs font-medium'>
+              +{menuUrls.length - 3}
+            </div>
+          )}
+        </div>
+      )
+    },
+  },
+  {
     accessorKey: 'address',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title='Address' />

@@ -21,6 +21,7 @@ import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authen
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedStoresIndexRouteImport } from './routes/_authenticated/stores/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedPinMessagesIndexRouteImport } from './routes/_authenticated/pin-messages/index'
 import { Route as AuthenticatedMenuButtonsIndexRouteImport } from './routes/_authenticated/menu-buttons/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as AuthenticatedAdvertisementsIndexRouteImport } from './routes/_authenticated/advertisements/index'
@@ -92,6 +93,12 @@ const AuthenticatedSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedPinMessagesIndexRoute =
+  AuthenticatedPinMessagesIndexRouteImport.update({
+    id: '/pin-messages/',
+    path: '/pin-messages/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMenuButtonsIndexRoute =
   AuthenticatedMenuButtonsIndexRouteImport.update({
     id: '/menu-buttons/',
@@ -157,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/advertisements': typeof AuthenticatedAdvertisementsIndexRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/menu-buttons': typeof AuthenticatedMenuButtonsIndexRoute
+  '/pin-messages': typeof AuthenticatedPinMessagesIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/stores': typeof AuthenticatedStoresIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
@@ -177,6 +185,7 @@ export interface FileRoutesByTo {
   '/advertisements': typeof AuthenticatedAdvertisementsIndexRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/menu-buttons': typeof AuthenticatedMenuButtonsIndexRoute
+  '/pin-messages': typeof AuthenticatedPinMessagesIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/stores': typeof AuthenticatedStoresIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
@@ -200,6 +209,7 @@ export interface FileRoutesById {
   '/_authenticated/advertisements/': typeof AuthenticatedAdvertisementsIndexRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/menu-buttons/': typeof AuthenticatedMenuButtonsIndexRoute
+  '/_authenticated/pin-messages/': typeof AuthenticatedPinMessagesIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/stores/': typeof AuthenticatedStoresIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/advertisements'
     | '/apps'
     | '/menu-buttons'
+    | '/pin-messages'
     | '/settings/'
     | '/stores'
     | '/users'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '/advertisements'
     | '/apps'
     | '/menu-buttons'
+    | '/pin-messages'
     | '/settings'
     | '/stores'
     | '/users'
@@ -265,6 +277,7 @@ export interface FileRouteTypes {
     | '/_authenticated/advertisements/'
     | '/_authenticated/apps/'
     | '/_authenticated/menu-buttons/'
+    | '/_authenticated/pin-messages/'
     | '/_authenticated/settings/'
     | '/_authenticated/stores/'
     | '/_authenticated/users/'
@@ -366,6 +379,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/pin-messages/': {
+      id: '/_authenticated/pin-messages/'
+      path: '/pin-messages'
+      fullPath: '/pin-messages'
+      preLoaderRoute: typeof AuthenticatedPinMessagesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/menu-buttons/': {
       id: '/_authenticated/menu-buttons/'
       path: '/menu-buttons'
@@ -455,6 +475,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdvertisementsIndexRoute: typeof AuthenticatedAdvertisementsIndexRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedMenuButtonsIndexRoute: typeof AuthenticatedMenuButtonsIndexRoute
+  AuthenticatedPinMessagesIndexRoute: typeof AuthenticatedPinMessagesIndexRoute
   AuthenticatedStoresIndexRoute: typeof AuthenticatedStoresIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
 }
@@ -466,6 +487,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdvertisementsIndexRoute: AuthenticatedAdvertisementsIndexRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedMenuButtonsIndexRoute: AuthenticatedMenuButtonsIndexRoute,
+  AuthenticatedPinMessagesIndexRoute: AuthenticatedPinMessagesIndexRoute,
   AuthenticatedStoresIndexRoute: AuthenticatedStoresIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
 }

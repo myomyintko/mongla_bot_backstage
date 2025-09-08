@@ -1,6 +1,3 @@
-import * as React from 'react'
-import { Check, ChevronsUpDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -15,6 +12,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+import { Check, ChevronsUpDown } from 'lucide-react'
+import React, { useState } from 'react'
 
 export interface SearchableSelectOption {
   label: string
@@ -43,7 +43,7 @@ export function SearchableSelect({
   className,
   disabled = false,
 }: SearchableSelectProps) {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = useState(false)
 
   const selectedOption = options.find((option) => option.value === value)
 
@@ -74,39 +74,49 @@ export function SearchableSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
-            <CommandEmpty>{emptyMessage}</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.label}
-                  onSelect={(currentValue) => {
-                    const selectedOption = options.find(opt => opt.label === currentValue)
-                    onValueChange?.(selectedOption?.value === value ? '' : selectedOption?.value || '')
-                    setOpen(false)
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      'mr-2 h-4 w-4',
-                      value === option.value ? 'opacity-100' : 'opacity-0'
-                    )}
-                  />
-                  <div className="flex items-center gap-2">
-                    {option.icon && (
-                      <option.icon className="h-4 w-4" />
-                    )}
-                    {option.label}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+      <PopoverContent className="w-full p-0" align="start" side="bottom">
+        <div 
+          className="max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+          style={{ 
+            maxHeight: '200px', 
+            overflowY: 'auto', 
+            overflowX: 'hidden',
+            scrollBehavior: 'smooth'
+          }}
+        >
+          <Command>
+            <CommandInput placeholder={searchPlaceholder} />
+            <CommandList style={{ height: 'auto', maxHeight: 'none' }}>
+              <CommandEmpty>{emptyMessage}</CommandEmpty>
+              <CommandGroup>
+                {options.map((option) => (
+                  <CommandItem
+                    key={option.value}
+                    value={option.label}
+                    onSelect={(currentValue) => {
+                      const selectedOption = options.find(opt => opt.label === currentValue)
+                      onValueChange?.(selectedOption?.value === value ? '' : selectedOption?.value || '')
+                      setOpen(false)
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        value === option.value ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                    <div className="flex items-center gap-2">
+                      {option.icon && (
+                        <option.icon className="h-4 w-4" />
+                      )}
+                      {option.label}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </div>
       </PopoverContent>
     </Popover>
   )

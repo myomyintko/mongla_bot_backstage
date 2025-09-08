@@ -5,6 +5,7 @@ export const storesSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   media_url: z.string().nullable(),
+  menu_urls: z.array(z.string()).nullable(),
   open_hour: z.string().nullable(),
   close_hour: z.string().nullable(),
   status: z.number().nullable(),

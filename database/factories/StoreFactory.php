@@ -37,6 +37,7 @@ class StoreFactory extends Factory
             'name' => $name,
             'description' => fake()->paragraph(3),
             'media_url' => null,
+            'menu_urls' => null,
             'open_hour' => fake()->time('H:i'),
             'close_hour' => fake()->time('H:i'),
             'status' => fake()->randomElement([0, 1]),
