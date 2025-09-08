@@ -1,12 +1,11 @@
 import { DataTableColumnHeader } from '@/components/data-table'
-import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { type ColumnDef } from '@tanstack/react-table'
 import { statuses } from '../data/data'
-import { type Store } from '../data/schema'
+import { type Advertisement } from '../data/schema'
 import { DataTableRowActions } from './data-table-row-actions'
 
-export const storesColumns: ColumnDef<Store>[] = [
+export const advertisementsColumns: ColumnDef<Advertisement>[] = [
   {
     id: 'select',
     header: ({ table }) => (
@@ -41,15 +40,15 @@ export const storesColumns: ColumnDef<Store>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: 'name',
+    accessorKey: 'title',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Name' />
+      <DataTableColumnHeader column={column} title='Title' />
     ),
     cell: ({ row }) => {
       return (
         <div className='flex space-x-2'>
           <span className='max-w-32 truncate font-medium sm:max-w-72 md:max-w-[31rem]'>
-            {row.getValue('name')}
+            {row.getValue('title')}
           </span>
         </div>
       )
@@ -85,33 +84,47 @@ export const storesColumns: ColumnDef<Store>[] = [
     },
   },
   {
-    accessorKey: 'address',
+    accessorKey: 'media_url',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Address' />
+      <DataTableColumnHeader column={column} title='Media URL' />
     ),
     cell: ({ row }) => {
-      const address = row.getValue('address') as string | null
+      const mediaUrl = row.getValue('media_url') as string | null
       return (
         <div className='max-w-[150px] truncate'>
-          {address || 'No address'}
+          {mediaUrl || 'No media URL'}
         </div>
       )
     },
   },
   {
-    accessorKey: 'operating_hours',
+    accessorKey: 'start_date',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Operating Hours' />
+      <DataTableColumnHeader column={column} title='Start Date' />
     ),
     cell: ({ row }) => {
-      const openHour = row.original.open_hour
-      const closeHour = row.original.close_hour
+      const startDate = row.getValue('start_date') as string | null
       
-      if (!openHour || !closeHour) {
-        return <span className='text-muted-foreground'>Not specified</span>
+      if (!startDate) {
+        return <span className='text-muted-foreground'>Not set</span>
       }
       
-      return <div className='text-sm'>{openHour} - {closeHour}</div>
+      return <div className='text-sm'>{new Date(startDate).toLocaleDateString()}</div>
+    },
+  },
+  {
+    accessorKey: 'end_date',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='End Date' />
+    ),
+    cell: ({ row }) => {
+      const endDate = row.getValue('end_date') as string | null
+      
+      if (!endDate) {
+        return <span className='text-muted-foreground'>Not set</span>
+      }
+      
+      return <div className='text-sm'>{new Date(endDate).toLocaleDateString()}</div>
     },
   },
   {
@@ -139,50 +152,46 @@ export const storesColumns: ColumnDef<Store>[] = [
     },
   },
   {
-    accessorKey: 'recommand',
+    accessorKey: 'store_id',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Recommended' />
+      <DataTableColumnHeader column={column} title='Store ID' />
     ),
     cell: ({ row }) => {
-      const recommand = row.getValue('recommand') as boolean
-      return (
-        <Badge variant={recommand ? 'default' : 'outline'}>
-          {recommand ? 'Yes' : 'No'}
-        </Badge>
-      )
-    },
-    filterFn: (row, _id, value) => {
-      const recommand = row.getValue('recommand') as boolean
-      if (value === 'all') return true
-      return value === String(recommand)
-    },
-  },
-  {
-    accessorKey: 'menu_button_id',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Category ID' />
-    ),
-    cell: ({ row }) => {
-      const menuButtonId = row.getValue('menu_button_id')
+      const storeId = row.getValue('store_id')
       return (
         <div className='max-w-[100px] truncate'>
-          {menuButtonId ? String(menuButtonId) : 'No category'}
+          {storeId ? String(storeId) : 'No store'}
         </div>
       )
     },
   },
   {
-    accessorKey: 'menu_button',
+    accessorKey: 'store',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Category' />
+      <DataTableColumnHeader column={column} title='Store' />
     ),
     cell: ({ row }) => {
-      const menuButton = row.original.menu_button
+      const store = row.original.store
       return (
         <div className='max-w-[150px] truncate'>
-          {menuButton?.name || 'No category'}
+          {store?.name || 'No store'}
         </div>
       )
+    },
+  },
+  {
+    accessorKey: 'frequency_cap_minutes',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Frequency Cap' />
+    ),
+    cell: ({ row }) => {
+      const frequency = row.getValue('frequency_cap_minutes') as number | null
+      
+      if (!frequency) {
+        return <span className='text-muted-foreground'>Not set</span>
+      }
+      
+      return <div className='text-sm'>{frequency} minutes</div>
     },
   },
   {

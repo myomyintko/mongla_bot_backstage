@@ -20,17 +20,17 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { useEffect, useState } from 'react'
-import { statuses, recommendationTypes } from '../data/data'
-import { type Store } from '../data/schema'
+import { statuses } from '../data/data'
+import { type Advertisement } from '../data/schema'
 import { DataTableBulkActions } from './data-table-bulk-actions'
-import { storesColumns as columns } from './stores-columns'
-import { menuButtonsService } from '@/services/menu-buttons-service'
+import { advertisementsColumns as columns } from './advertisements-columns'
+import { storesService } from '@/services/stores-service'
 import { useQuery } from '@tanstack/react-query'
 
-const route = getRouteApi('/_authenticated/stores/')
+const route = getRouteApi('/_authenticated/advertisements/')
 
 type DataTableProps = {
-    data: Store[]
+    data: Advertisement[]
     paginationMeta?: {
         current_page: number
         last_page: number
@@ -39,27 +39,26 @@ type DataTableProps = {
     }
 }
 
-export function StoresTable({ data, paginationMeta }: DataTableProps) {
+export function AdvertisementsTable({ data, paginationMeta }: DataTableProps) {
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 
-  // Fetch menu buttons for category filter
-  const { data: menuButtonsData } = useQuery({
-    queryKey: ['menu-buttons', 'store', 'all'],
-    queryFn: () => menuButtonsService.getMenuButtons({ 
-      button_type: 'store',
-      per_page: 1000 // Fetch all store-type menu buttons
+  // Fetch stores for store filter
+  const { data: storesData } = useQuery({
+    queryKey: ['stores', 'all'],
+    queryFn: () => storesService.getStores({ 
+      per_page: 1000 // Fetch all stores
     }),
   })
 
-  const menuButtons = menuButtonsData?.data || []
-  const menuButtonOptions = [
-    { label: 'All Categories', value: 'all' },
-    { label: 'No Category', value: 'none' },
-    ...menuButtons.map((button) => ({
-      label: button.name,
-      value: String(button.id),
+  const stores = storesData?.data || []
+  const storeOptions = [
+    { label: 'All Stores', value: 'all' },
+    { label: 'No Store', value: 'none' },
+    ...stores.map((store) => ({
+      label: store.name,
+      value: String(store.id),
     })),
   ]
   const {
@@ -82,8 +81,7 @@ export function StoresTable({ data, paginationMeta }: DataTableProps) {
     globalFilter: { enabled: true, key: 'filter' },
     columnFilters: [
       { columnId: 'status', searchKey: 'status', type: 'array' },
-      { columnId: 'recommand', searchKey: 'recommand', type: 'array' },
-      { columnId: 'menu_button_id', searchKey: 'menu_button_id', type: 'array' },
+      { columnId: 'store_id', searchKey: 'store_id', type: 'array' },
     ],
   })
 
@@ -124,7 +122,7 @@ export function StoresTable({ data, paginationMeta }: DataTableProps) {
     <div className='space-y-4 max-sm:has-[div[role="toolbar"]]:mb-16'>
       <DataTableToolbar
         table={table}
-        searchPlaceholder='Filter by name or ID...'
+        searchPlaceholder='Filter by title or description...'
         filters={[
           {
             columnId: 'status',
@@ -132,14 +130,9 @@ export function StoresTable({ data, paginationMeta }: DataTableProps) {
             options: statuses,
           },
           {
-            columnId: 'recommand',
-            title: 'Recommended',
-            options: recommendationTypes,
-          },
-          {
-            columnId: 'menu_button_id',
-            title: 'Category',
-            options: menuButtonOptions,
+            columnId: 'store_id',
+            title: 'Store',
+            options: storeOptions,
           },
         ]}
       />

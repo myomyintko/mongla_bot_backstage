@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { getCookie, setCookie, removeCookie } from '@/lib/cookies'
-import { authService } from '@/lib/auth-service'
+import { authService } from '@/services/auth-service'
 
 const ACCESS_TOKEN = 'access_token'
 

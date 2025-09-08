@@ -1,46 +1,46 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { menuButtonsService } from '@/services/menu-buttons-service'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { MenuButtonsImportDialog } from './menu-buttons-import-dialog'
-import { MenuButtonsMutateDrawer } from './menu-buttons-mutate-drawer'
-import { useMenuButtons } from './menu-buttons-provider'
+import { AdvertisementsImportDialog } from './advertisements-import-dialog'
+import { AdvertisementsMutateDrawer } from './advertisements-mutate-drawer'
+import { useAdvertisements } from './advertisements-provider'
+import { advertisementsService } from '@/services/advertisements-service'
 
-export function MenuButtonsDialogs() {
-  const { open, setOpen, currentRow, setCurrentRow } = useMenuButtons()
+export function AdvertisementsDialogs() {
+  const { open, setOpen, currentRow, setCurrentRow } = useAdvertisements()
   const queryClient = useQueryClient()
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => menuButtonsService.deleteMenuButton(id),
+    mutationFn: (id: number) => advertisementsService.deleteAdvertisement(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menu-buttons'] })
-      toast.success('Menu button deleted successfully!')
+      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      toast.success('Advertisement deleted successfully!')
       setOpen(null)
       setCurrentRow(null)
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete menu button')
+      toast.error(error.response?.data?.message || 'Failed to delete advertisement')
     },
   })
 
   return (
     <>
-      <MenuButtonsMutateDrawer
-        key='menu-buttons-create'
+      <AdvertisementsMutateDrawer
+        key='advertisements-create'
         open={open === 'create'}
         onOpenChange={() => setOpen('create')}
       />
 
-      <MenuButtonsImportDialog
-        key='menu-buttons-import'
+      <AdvertisementsImportDialog
+        key='advertisements-import'
         open={open === 'import'}
         onOpenChange={() => setOpen('import')}
       />
 
       {currentRow && (
         <>
-          <MenuButtonsMutateDrawer
-            key={`menu-buttons-update-${currentRow.id}`}
+          <AdvertisementsMutateDrawer
+            key={`advertisements-update-${currentRow.id}`}
             open={open === 'update'}
             onOpenChange={() => {
               setOpen('update')
@@ -52,7 +52,7 @@ export function MenuButtonsDialogs() {
           />
 
           <ConfirmDialog
-            key='menu-buttons-delete'
+            key='advertisements-delete'
             destructive
             open={open === 'delete'}
             onOpenChange={() => {
@@ -65,10 +65,10 @@ export function MenuButtonsDialogs() {
               deleteMutation.mutate(currentRow.id)
             }}
             className='max-w-md'
-              title={`Delete this menu button: ${currentRow.id} ?`}
+              title={`Delete this advertisement: ${currentRow.id} ?`}
             desc={
               <>
-                You are about to delete a menu button with the ID{' '}
+                You are about to delete a advertisement with the ID{' '}
                 <strong>{currentRow.id}</strong>. <br />
                 This action cannot be undone.
               </>

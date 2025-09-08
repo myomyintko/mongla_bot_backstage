@@ -20,8 +20,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { menuButtonsService } from '@/lib/menu-buttons-service'
-import { mediaService } from '@/lib/media-service'
+import { menuButtonsService } from '@/services/menu-buttons-service'
+import { mediaService } from '@/services/media-service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import MDEditor from '@uiw/react-md-editor'

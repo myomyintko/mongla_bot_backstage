@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\StoreController;
+use App\Http\Controllers\AdvertisementController;
 
 /*
 |--------------------------------------------------------------------------
@@ -48,4 +49,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('stores', StoreController::class);
     Route::post('/stores/bulk-update', [StoreController::class, 'bulkUpdate']);
     Route::post('/stores/bulk-delete', [StoreController::class, 'bulkDelete']);
+});
+
+// Advertisements routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('advertisements', AdvertisementController::class);
+    Route::post('/advertisements/bulk-update', [AdvertisementController::class, 'bulkUpdate']);
+    Route::post('/advertisements/bulk-delete', [AdvertisementController::class, 'bulkDelete']);
 });

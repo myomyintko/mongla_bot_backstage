@@ -1,8 +1,6 @@
 import { MultiMediaUploader } from '@/components/multi-media-uploader'
-import { SelectDropdown } from '@/components/select-dropdown'
 import { SearchableSelect } from '@/components/searchable-select'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -21,65 +19,62 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { storesService } from '@/services/stores-service'
-import { mediaService } from '@/services/media-service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import MDEditor from '@uiw/react-md-editor'
-import { menuButtonsService } from '@/services/menu-buttons-service'
 import { useForm } from 'react-hook-form'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { statuses, timeOptions } from '../data/data'
-import { Store } from '../data/schema'
+import { statuses, frequencyOptions } from '../data/data'
+import { Advertisement } from '../data/schema'
+import { advertisementsService } from '@/services/advertisements-service'
+import { storesService } from '@/services/stores-service'
+import { mediaService } from '@/services/media-service'
 
-type StoresMutateDrawerProps = {
+type AdvertisementsMutateDrawerProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  currentRow?: Store
+  currentRow?: Advertisement
 }
 
 const formSchema = z.object({
-  name: z.string().min(1, 'Name is required.'),
+  title: z.string().min(1, 'Title is required.'),
   description: z.string().nullable().optional(),
   status: z.string().min(1, 'Please select a status.'),
-  address: z.string().nullable().optional(),
-  open_hour: z.string().nullable().optional(),
-  close_hour: z.string().nullable().optional(),
-  recommand: z.boolean().optional(),
+  store_id: z.string().optional(),
   media_url: z.array(z.string()).optional(),
-  sub_btns: z.array(z.string()).nullable().optional(),
-  menu_button_id: z.string().optional(),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
+  frequency_cap_minutes: z.string().nullable().optional(),
 })
-type StoreForm = z.infer<typeof formSchema>
+type AdvertisementForm = z.infer<typeof formSchema>
 
-export function StoresMutateDrawer({
+export function AdvertisementsMutateDrawer({
   open,
   onOpenChange,
   currentRow,
-}: StoresMutateDrawerProps) {
+}: AdvertisementsMutateDrawerProps) {
   const isUpdate = !!currentRow
   const queryClient = useQueryClient()
   const [deletedFiles, setDeletedFiles] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
 
-  // Fetch menu buttons for dropdown (only store type)
-  const { data: menuButtonsData } = useQuery({
-    queryKey: ['menu-buttons', 'store'],
-    queryFn: () => menuButtonsService.getMenuButtons({ 
-      button_type: 'store',
-      per_page: 1000 // Fetch all store-type menu buttons
+  // Fetch stores for dropdown
+  const { data: storesData } = useQuery({
+    queryKey: ['stores', 'all'],
+    queryFn: () => storesService.getStores({ 
+      per_page: 1000 // Fetch all stores
     }),
     enabled: open, // Only fetch when drawer is open
   })
 
-  const menuButtons = menuButtonsData?.data || []
-  const menuButtonOptions = [
-    { label: 'No Category', value: 'none' },
-    ...menuButtons.map((button) => ({
-      label: button.name,
-      value: String(button.id),
+  const stores = storesData?.data || []
+  const storeOptions = [
+    { label: 'No Store', value: 'none' },
+    ...stores.map((store) => ({
+      label: store.name,
+      value: String(store.id),
     })),
   ]
 
@@ -103,7 +98,7 @@ export function StoresMutateDrawer({
       for (const fileUrl of filesToCleanup) {
         const cleanUrl = fileUrl.split('#')[0]
         const filePath = mediaService.extractPathFromUrl(cleanUrl)
-        
+
         if (filePath && !cleanUrl.startsWith('blob:')) {
           await mediaService.deleteFile(filePath)
         }
@@ -125,7 +120,7 @@ export function StoresMutateDrawer({
       for (const fileUrl of deletedFiles) {
         const cleanUrl = fileUrl.split('#')[0]
         const filePath = mediaService.extractPathFromUrl(cleanUrl)
-        
+
         if (filePath && !cleanUrl.startsWith('blob:')) {
           await mediaService.deleteFile(filePath)
         }
@@ -138,19 +133,17 @@ export function StoresMutateDrawer({
     }
   }
 
-  const form = useForm<StoreForm>({
+  const form = useForm<AdvertisementForm>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
+      title: '',
       description: null,
       status: '1',
-      address: null,
-      open_hour: null,
-      close_hour: null,
-      recommand: false,
+      store_id: 'none',
       media_url: [],
-      sub_btns: null,
-      menu_button_id: 'none',
+      start_date: null,
+      end_date: null,
+      frequency_cap_minutes: null,
     },
   })
 
@@ -158,29 +151,25 @@ export function StoresMutateDrawer({
   useEffect(() => {
     if (open) {
       const defaultValues = currentRow ? {
-        name: currentRow.name,
+        title: currentRow.title,
         description: currentRow.description,
         status: String(currentRow.status),
-        address: currentRow.address,
-        open_hour: currentRow.open_hour,
-        close_hour: currentRow.close_hour,
-        recommand: currentRow.recommand,
+        store_id: currentRow.store_id ? String(currentRow.store_id) : 'none',
         media_url: currentRow.media_url && currentRow.media_url.trim() ? [currentRow.media_url] : [],
-        sub_btns: currentRow.sub_btns,
-        menu_button_id: currentRow.menu_button_id ? String(currentRow.menu_button_id) : 'none',
+        start_date: currentRow.start_date ? new Date(currentRow.start_date).toISOString().slice(0, 16) : null,
+        end_date: currentRow.end_date ? new Date(currentRow.end_date).toISOString().slice(0, 16) : null,
+        frequency_cap_minutes: currentRow.frequency_cap_minutes ? String(currentRow.frequency_cap_minutes) : null,
       } : {
-        name: '',
+        title: '',
         description: null,
         status: '1',
-        address: null,
-        open_hour: null,
-        close_hour: null,
-        recommand: false,
+        store_id: 'none',
         media_url: [],
-        sub_btns: null,
-        menu_button_id: 'none',
+        start_date: null,
+        end_date: null,
+        frequency_cap_minutes: null,
       }
-      
+
       form.reset(defaultValues)
       setDeletedFiles([])
       setUploadedFiles([])
@@ -188,47 +177,43 @@ export function StoresMutateDrawer({
   }, [open, currentRow, form])
 
   const createMutation = useMutation({
-    mutationFn: (data: StoreForm) => storesService.createStore({
-      name: data.name,
+    mutationFn: (data: AdvertisementForm) => advertisementsService.createAdvertisement({
+      title: data.title,
       description: data.description || undefined,
       status: Number(data.status),
-      address: data.address || undefined,
-      open_hour: data.open_hour || undefined,
-      close_hour: data.close_hour || undefined,
-      recommand: data.recommand || false,
+      store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : undefined,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
-      sub_btns: data.sub_btns || undefined,
-      menu_button_id: data.menu_button_id && data.menu_button_id !== 'none' ? Number(data.menu_button_id) : undefined,
+      start_date: data.start_date ? new Date(data.start_date).toISOString() : undefined,
+      end_date: data.end_date ? new Date(data.end_date).toISOString() : undefined,
+      frequency_cap_minutes: data.frequency_cap_minutes ? Number(data.frequency_cap_minutes) : undefined,
     }),
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['stores'] })
-        toast.success('Store created successfully!')
+      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      toast.success('Advertisement created successfully!')
       // Don't cleanup files on successful save - they should remain
       setDeletedFiles([])
       setUploadedFiles([])
       onOpenChange(false)
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create store')
+      toast.error(error.response?.data?.message || 'Failed to create advertisement')
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: StoreForm) => storesService.updateStore(currentRow!.id, {
-      name: data.name,
+    mutationFn: (data: AdvertisementForm) => advertisementsService.updateAdvertisement(currentRow!.id, {
+      title: data.title,
       description: data.description || undefined,
       status: Number(data.status),
-      address: data.address || undefined,
-      open_hour: data.open_hour || undefined,
-      close_hour: data.close_hour || undefined,
-      recommand: data.recommand || false,
+      store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : undefined,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
-      sub_btns: data.sub_btns || undefined,
-      menu_button_id: data.menu_button_id && data.menu_button_id !== 'none' ? Number(data.menu_button_id) : undefined,
+      start_date: data.start_date ? new Date(data.start_date).toISOString() : undefined,
+      end_date: data.end_date ? new Date(data.end_date).toISOString() : undefined,
+      frequency_cap_minutes: data.frequency_cap_minutes ? Number(data.frequency_cap_minutes) : undefined,
     }),
     onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['stores'] })
-      toast.success('Store updated successfully!')
+      queryClient.invalidateQueries({ queryKey: ['advertisements'] })
+      toast.success('Advertisement updated successfully!')
       // Clean up only deleted files on successful update
       await cleanupDeletedFiles()
       // Clear uploaded files since they're now saved
@@ -236,11 +221,11 @@ export function StoresMutateDrawer({
       onOpenChange(false)
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update store')
+      toast.error(error.response?.data?.message || 'Failed to update advertisement')
     },
   })
 
-  const onSubmit = (data: StoreForm) => {
+  const onSubmit = (data: AdvertisementForm) => {
     if (isUpdate) {
       updateMutation.mutate(data)
     } else {
@@ -261,28 +246,28 @@ export function StoresMutateDrawer({
     >
       <SheetContent className='flex flex-col'>
         <SheetHeader className='text-start'>
-          <SheetTitle>{isUpdate ? 'Update' : 'Create'} Store</SheetTitle>
+          <SheetTitle>{isUpdate ? 'Update' : 'Create'} Advertisement</SheetTitle>
           <SheetDescription>
             {isUpdate
-              ? 'Update the store by providing necessary info.'
-              : 'Add a new store by providing necessary info.'}
+              ? 'Update the advertisement by providing necessary info.'
+              : 'Add a new advertisement by providing necessary info.'}
             Click save when you&apos;re done.
           </SheetDescription>
         </SheetHeader>
         <Form {...form}>
           <form
-            id='stores-form'
+            id='advertisements-form'
             onSubmit={form.handleSubmit(onSubmit)}
             className='flex-1 space-y-6 overflow-y-auto px-4'
           >
             <FormField
               control={form.control}
-              name='name'
+              name='title'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder='Enter store name' />
+                    <Input {...field} placeholder='Enter advertisement title' />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -316,96 +301,88 @@ export function StoresMutateDrawer({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status</FormLabel>
-                  <SelectDropdown
-                    defaultValue={field.value}
-                    onValueChange={field.onChange}
-                    placeholder='Select status'
-                    items={statuses}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='address'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <Input 
-                      {...field} 
-                      value={field.value || ''} 
-                      placeholder='Enter store address' 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='open_hour'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Opening Hour</FormLabel>
-                  <SelectDropdown
-                    defaultValue={field.value || undefined}
-                    onValueChange={field.onChange}
-                    placeholder='Select opening hour'
-                    items={timeOptions}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='close_hour'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Closing Hour</FormLabel>
-                  <SelectDropdown
-                    defaultValue={field.value || undefined}
-                    onValueChange={field.onChange}
-                    placeholder='Select closing hour'
-                    items={timeOptions}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='recommand'
-              render={({ field }) => (
-                <FormItem className='flex flex-row items-start space-x-3 space-y-0'>
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className='space-y-1 leading-none'>
-                    <FormLabel>Recommended Store</FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='menu_button_id'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
                   <FormControl>
                     <SearchableSelect
                       value={field.value}
                       onValueChange={field.onChange}
-                      placeholder='Select category'
-                      searchPlaceholder='Search categories...'
-                      emptyMessage='No categories found.'
-                      options={menuButtonOptions}
+                      placeholder='Select status'
+                      searchPlaceholder='Search status...'
+                      emptyMessage='No status found.'
+                      options={statuses}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='store_id'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Store</FormLabel>
+                  <FormControl>
+                    <SearchableSelect
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder='Select store'
+                      searchPlaceholder='Search stores...'
+                      emptyMessage='No stores found.'
+                      options={storeOptions}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='start_date'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Start Date</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="datetime-local"
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='end_date'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>End Date</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="datetime-local"
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='frequency_cap_minutes'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Frequency Cap (minutes)</FormLabel>
+                  <FormControl>
+                    <SearchableSelect
+                      value={field.value || ''}
+                      onValueChange={field.onChange}
+                      placeholder='Select frequency cap'
+                      searchPlaceholder='Search frequency...'
+                      emptyMessage='No frequency found.'
+                      options={frequencyOptions}
                     />
                   </FormControl>
                   <FormMessage />
@@ -428,7 +405,7 @@ export function StoresMutateDrawer({
                       listType="picture-card"
                       showUploadList={true}
                       showDownloadButton={false}
-                      uploadPath="stores"
+                      uploadPath="advertisements"
                       onFilesDeleted={handleFilesDeleted}
                       onFilesUploaded={handleFilesUploaded}
                       onPreview={(file) => {
@@ -450,13 +427,13 @@ export function StoresMutateDrawer({
               Cancel
             </Button>
           </SheetClose>
-          <Button 
-            form='stores-form' 
+          <Button
+            form='advertisements-form'
             type='submit'
             disabled={createMutation.isPending || updateMutation.isPending}
           >
-            {createMutation.isPending || updateMutation.isPending 
-              ? 'Saving...' 
+            {createMutation.isPending || updateMutation.isPending
+              ? 'Saving...'
               : isUpdate ? 'Update' : 'Create'
             }
           </Button>

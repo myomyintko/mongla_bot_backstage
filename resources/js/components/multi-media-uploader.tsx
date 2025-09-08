@@ -4,7 +4,7 @@ import React, { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Upload, Trash, Eye, Download, FileText, Play } from "lucide-react";
-import { mediaService, MediaFile } from "@/lib/media-service";
+import { mediaService, MediaFile } from "@/services/media-service";
 
 interface UploadFile {
   uid: string;

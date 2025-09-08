@@ -4,7 +4,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { StoresImportDialog } from './stores-import-dialog'
 import { StoresMutateDrawer } from './stores-mutate-drawer'
 import { useStores } from './stores-provider'
-import { storesService } from '@/lib/stores-service'
+import { storesService } from '@/services/stores-service'
 
 export function StoresDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useStores()
