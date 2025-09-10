@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface AuthProviderProps {
@@ -8,8 +8,16 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false)
   const { auth } = useAuthStore()
+  const hasInitialized = useRef(false)
 
   useEffect(() => {
+    // Prevent duplicate initialization calls (especially in StrictMode)
+    if (hasInitialized.current) {
+      return
+    }
+
+    hasInitialized.current = true
+
     const initializeAuth = async () => {
       try {
         await auth.initialize()
@@ -21,7 +29,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     initializeAuth()
-  }, [auth])
+  }, []) // Empty dependency array - only run once on mount
 
   // Show loading state while initializing
   if (!isInitialized) {

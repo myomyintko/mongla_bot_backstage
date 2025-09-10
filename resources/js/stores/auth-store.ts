@@ -32,6 +32,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()((set, get) => {
   const cookieState = getCookie(ACCESS_TOKEN)
   const initToken = cookieState ? JSON.parse(cookieState) : ''
+  let isInitializing = false
   
   return {
     auth: {
@@ -90,8 +91,14 @@ export const useAuthStore = create<AuthState>()((set, get) => {
         }
       },
       initialize: async () => {
+        // Prevent duplicate initialization calls
+        if (isInitializing) {
+          return
+        }
+
         const token = get().auth.accessToken
         if (token) {
+          isInitializing = true
           try {
             const response = await authService.getUser()
             set((state) => ({
@@ -101,6 +108,8 @@ export const useAuthStore = create<AuthState>()((set, get) => {
           } catch (error) {
             // Token is invalid, reset auth state
             get().auth.reset()
+          } finally {
+            isInitializing = false
           }
         }
       },

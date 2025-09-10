@@ -4,7 +4,7 @@ import React, { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Upload, Trash, Eye, Download, FileText, Play } from "lucide-react";
-import { mediaService, MediaFile } from "@/services/media-service";
+import { mediaLibraryService, type MediaLibraryItem } from "@/services/media-library-service";
 
 interface UploadFile {
   uid: string;
@@ -18,8 +18,8 @@ interface UploadFile {
 }
 
 interface MultiMediaUploaderProps {
-  value: string[];
-  onChange: (files: string[]) => void;
+  value: (string | MediaLibraryItem)[];
+  onChange: (files: (string | MediaLibraryItem)[]) => void;
   maxFiles?: number;
   className?: string;
   name?: string;
@@ -30,8 +30,14 @@ interface MultiMediaUploaderProps {
   onDownload?: (file: UploadFile) => void;
   showDownloadButton?: boolean;
   uploadPath?: string; // Path for organizing uploaded files
-  onFilesDeleted?: (deletedFiles: string[]) => void; // Callback for files that were removed from UI
-  onFilesUploaded?: (uploadedFiles: string[]) => void; // Callback for files that were uploaded
+  onFilesDeleted?: (deletedFiles: (string | MediaLibraryItem)[]) => void; // Callback for files that were removed from UI
+  onFilesUploaded?: (uploadedFiles: MediaLibraryItem[]) => void; // Callback for files that were uploaded
+  metadata?: {
+    alt_text?: string;
+    description?: string;
+    tags?: string[];
+    is_public?: boolean;
+  };
 }
 
 export function MultiMediaUploader({
@@ -46,9 +52,10 @@ export function MultiMediaUploader({
   onPreview,
   onDownload,
   showDownloadButton = true,
-  uploadPath,
+  uploadPath, // Available for future use or file organization
   onFilesDeleted,
   onFilesUploaded,
+  metadata = {},
 }: MultiMediaUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
@@ -101,8 +108,12 @@ export function MultiMediaUploader({
 
         setUploadingFiles(newUploadingFiles);
 
-        // Upload files to the server
-        const response = await mediaService.uploadFiles(validFiles, uploadPath);
+        // Upload files to the media library
+        const uploadMetadata = {
+          ...metadata,
+          upload_path: uploadPath
+        };
+        const response = await mediaLibraryService.uploadFiles(validFiles, uploadMetadata);
         
         if (response.success) {
           // Update progress to 100% for all files
@@ -110,19 +121,13 @@ export function MultiMediaUploader({
             prev.map(f => ({ ...f, percent: 100, status: 'done' as const }))
           );
 
-          // Convert uploaded files to URLs with type information
-          const uploadedUrls = response.data.map((file: MediaFile) => {
-            const urlWithType = `${file.url}#type=${file.type}`;
-            return urlWithType;
-          });
-
           // Notify parent component about uploaded files
           if (onFilesUploaded) {
-            onFilesUploaded(uploadedUrls);
+            onFilesUploaded(response.data);
           }
 
-          // Add all uploaded URLs to the value array
-          onChange([...value, ...uploadedUrls]);
+          // Add all uploaded media items to the value array
+          onChange([...value, ...response.data]);
           setUploadingFiles([]);
         } else {
           throw new Error(response.message || 'Upload failed');
@@ -282,12 +287,36 @@ export function MultiMediaUploader({
     );
   };
 
-  const renderFileItem = (url: string, index: number) => {
-    // Extract clean URL without type information
-    const cleanUrl = url.split('#')[0];
-    const isImageFile = isImage(url);
-    const isVideoFile = isVideo(url);
-    const fileName = cleanUrl.split('/').pop() || `file-${index + 1}`;
+  const renderFileItem = (item: string | MediaLibraryItem, index: number) => {
+    // Handle both string URLs and MediaLibraryItem objects
+    const isMediaLibraryItem = typeof item === 'object' && 'id' in item;
+    
+    let cleanUrl: string;
+    let isImageFile: boolean;
+    let isVideoFile: boolean;
+    let fileName: string;
+    
+    if (isMediaLibraryItem) {
+      // MediaLibraryItem object
+      if (item.url) {
+        cleanUrl = item.url;
+      } else if (item.file_path) {
+        // If no URL is provided, construct it from file_path
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        cleanUrl = `${baseUrl}/storage/${item.file_path}`;
+      } else {
+        cleanUrl = '';
+      }
+      isImageFile = item.file_type === 'image';
+      isVideoFile = item.file_type === 'video';
+      fileName = item.name || item.original_name;
+    } else {
+      // String URL (legacy support)
+      cleanUrl = item.split('#')[0];
+      isImageFile = isImage(item);
+      isVideoFile = isVideo(item);
+      fileName = cleanUrl.split('/').pop() || `file-${index + 1}`;
+    }
     
     if (listType === 'picture-card') {
       return (
@@ -540,7 +569,12 @@ export function MultiMediaUploader({
       {/* File List with Upload Button */}
       <div className="w-full max-h-96 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-wrap gap-3">
-          {value.filter(url => url && url.trim()).map((url, index) => renderFileItem(url, index))}
+          {value.filter(item => {
+            if (typeof item === 'string') {
+              return item && item.trim();
+            }
+            return item && item.id;
+          }).map((item, index) => renderFileItem(item, index))}
           {renderUploadingFiles()}
           {renderUploadButton()}
         </div>

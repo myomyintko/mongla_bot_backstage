@@ -7,6 +7,8 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\AdvertisementController;
 use App\Http\Controllers\PinMessageController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\MediaLibraryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,6 +30,14 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');
+});
+
+// Profile routes
+Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+    Route::get('/', [ProfileController::class, 'show']);
+    Route::put('/', [ProfileController::class, 'update']);
+    Route::put('/avatar', [ProfileController::class, 'updateAvatar']);
+    Route::put('/password', [ProfileController::class, 'updatePassword']);
 });
 
 // Media upload routes
@@ -64,4 +74,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('pin-messages', PinMessageController::class);
     Route::post('/pin-messages/bulk-update', [PinMessageController::class, 'bulkUpdate']);
     Route::post('/pin-messages/bulk-delete', [PinMessageController::class, 'bulkDelete']);
+});
+
+// Media Library routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('media-library', MediaLibraryController::class);
+    Route::post('/media-library/bulk-delete', [MediaLibraryController::class, 'bulkDelete']);
 });

@@ -46,10 +46,16 @@ export const storesColumns: ColumnDef<Store>[] = [
       <DataTableColumnHeader column={column} title='Name' />
     ),
     cell: ({ row }) => {
+      const name = row.getValue('name') as string
+      const address = row.original.address as string | null
+      
       return (
-        <div className='flex space-x-2'>
-          <span className='max-w-32 truncate font-medium sm:max-w-72 md:max-w-[31rem]'>
-            {row.getValue('name')}
+        <div className='flex flex-col space-y-1'>
+          <span className='font-medium text-sm'>
+            {name}
+          </span>
+          <span className='text-xs text-muted-foreground'>
+            {address || 'No address'}
           </span>
         </div>
       )
@@ -80,56 +86,6 @@ export const storesColumns: ColumnDef<Store>[] = [
       return (
         <div className='max-w-[200px] truncate text-sm'>
           {plainText}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: 'menu_urls',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Menu Images' />
-    ),
-    cell: ({ row }) => {
-      const menuUrls = row.getValue('menu_urls') as string[] | null
-      
-      if (!menuUrls || menuUrls.length === 0) {
-        return <span className='text-muted-foreground'>No menu images</span>
-      }
-      
-      return (
-        <div className='flex gap-1 flex-wrap max-w-[200px]'>
-          {menuUrls.slice(0, 3).map((url, index) => (
-            <div key={index} className='w-[40px] h-[40px] flex items-center justify-center relative overflow-hidden'>
-              <img
-                src={url}
-                alt={`Menu image ${index + 1}`}
-                className='w-full h-full object-cover rounded cursor-pointer hover:opacity-80 transition-opacity'
-                onClick={() => window.open(url, '_blank')}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
-            </div>
-          ))}
-          {menuUrls.length > 3 && (
-            <div className='w-[40px] h-[40px] flex items-center justify-center bg-gray-100 rounded text-xs font-medium'>
-              +{menuUrls.length - 3}
-            </div>
-          )}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: 'address',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Address' />
-    ),
-    cell: ({ row }) => {
-      const address = row.getValue('address') as string | null
-      return (
-        <div className='max-w-[150px] truncate'>
-          {address || 'No address'}
         </div>
       )
     },
@@ -194,20 +150,6 @@ export const storesColumns: ColumnDef<Store>[] = [
     },
   },
   {
-    accessorKey: 'menu_button_id',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Category ID' />
-    ),
-    cell: ({ row }) => {
-      const menuButtonId = row.getValue('menu_button_id')
-      return (
-        <div className='max-w-[100px] truncate'>
-          {menuButtonId ? String(menuButtonId) : 'No category'}
-        </div>
-      )
-    },
-  },
-  {
     accessorKey: 'menu_button',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title='Category' />
@@ -219,6 +161,12 @@ export const storesColumns: ColumnDef<Store>[] = [
           {menuButton?.name || 'No category'}
         </div>
       )
+    },
+    filterFn: (row, _id, value) => {
+      const menuButtonId = row.original.menu_button_id
+      if (value === 'all') return true
+      if (value === 'none') return !menuButtonId
+      return value === String(menuButtonId)
     },
   },
   {

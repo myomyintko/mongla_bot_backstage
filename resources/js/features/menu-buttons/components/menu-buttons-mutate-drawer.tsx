@@ -21,7 +21,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { menuButtonsService } from '@/services/menu-buttons-service'
-import { mediaService } from '@/services/media-service'
+import { mediaLibraryService, type MediaLibraryItem } from '@/services/media-library-service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import MDEditor from '@uiw/react-md-editor'
@@ -38,6 +38,28 @@ type MenuButtonsMutateDrawerProps = {
   onOpenChange: (open: boolean) => void
   currentRow?: MenuButton
 }
+
+const mediaLibraryItemSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  original_name: z.string(),
+  file_path: z.string(),
+  file_size: z.number(),
+  mime_type: z.string(),
+  file_type: z.enum(['image', 'video', 'document', 'other']),
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+  duration: z.number().nullable(),
+  alt_text: z.string().nullable(),
+  description: z.string().nullable(),
+  tags: z.array(z.string()),
+  is_public: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  url: z.string().optional(),
+  formatted_size: z.string().optional(),
+  formatted_duration: z.string().nullable().optional(),
+}).passthrough() // Allow additional fields
 
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -64,13 +86,19 @@ export function MenuButtonsMutateDrawer({
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
 
   // Handle files that were deleted from the UI
-  const handleFilesDeleted = (files: string[]) => {
-    setDeletedFiles(prev => [...prev, ...files])
+  const handleFilesDeleted = (files: (string | MediaLibraryItem)[]) => {
+    // Convert MediaLibraryItem objects to URL strings for tracking
+    const urlStrings = files.map(file => 
+      typeof file === 'string' ? file : file.url || file.file_path
+    )
+    setDeletedFiles(prev => [...prev, ...urlStrings])
   }
 
   // Handle files that were uploaded during this session
-  const handleFilesUploaded = (files: string[]) => {
-    setUploadedFiles(prev => [...prev, ...files])
+  const handleFilesUploaded = (files: MediaLibraryItem[]) => {
+    // Convert MediaLibraryItem objects to URL strings for tracking
+    const urlStrings = files.map(file => file.url || file.file_path)
+    setUploadedFiles(prev => [...prev, ...urlStrings])
   }
 
   // Clean up files from server when form is saved or cancelled
@@ -79,15 +107,9 @@ export function MenuButtonsMutateDrawer({
     if (filesToCleanup.length === 0) return
 
     try {
-      // Delete files from server
-      for (const fileUrl of filesToCleanup) {
-        const cleanUrl = fileUrl.split('#')[0]
-        const filePath = mediaService.extractPathFromUrl(cleanUrl)
-        
-        if (filePath && !cleanUrl.startsWith('blob:')) {
-          await mediaService.deleteFile(filePath)
-        }
-      }
+      // For URL strings, we can't delete them through the media library API
+      // They'll be cleaned up by the server's file cleanup process
+      console.log('Files to cleanup:', filesToCleanup)
     } catch (error) {
       console.error('Failed to cleanup files:', error)
       // Don't show error to user as the main operation succeeded
@@ -101,15 +123,8 @@ export function MenuButtonsMutateDrawer({
     if (deletedFiles.length === 0) return
 
     try {
-      // Delete only the files that were removed from UI
-      for (const fileUrl of deletedFiles) {
-        const cleanUrl = fileUrl.split('#')[0]
-        const filePath = mediaService.extractPathFromUrl(cleanUrl)
-        
-        if (filePath && !cleanUrl.startsWith('blob:')) {
-          await mediaService.deleteFile(filePath)
-        }
-      }
+      // For URL strings, we can't delete them through the media library API
+      console.log('Deleted files to cleanup:', deletedFiles)
     } catch (error) {
       console.error('Failed to cleanup deleted files:', error)
       // Don't show error to user as the main operation succeeded
@@ -142,7 +157,11 @@ export function MenuButtonsMutateDrawer({
         status: String(currentRow.status),
         parent_id: currentRow.parent_id,
         sort: currentRow.sort,
-        media_url: currentRow.media_url && currentRow.media_url.trim() ? [currentRow.media_url] : [],
+        media_url: currentRow.media_url && currentRow.media_url.trim() ? [
+          currentRow.media_url.startsWith('http') 
+            ? currentRow.media_url 
+            : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${currentRow.media_url}`
+        ] : [],
         enable_template: currentRow.enable_template,
         template_content: currentRow.template_content,
         sub_btns: currentRow.sub_btns,
@@ -165,17 +184,30 @@ export function MenuButtonsMutateDrawer({
   }, [open, currentRow, form])
 
   const createMutation = useMutation({
-    mutationFn: (data: MenuButtonForm) => menuButtonsService.createMenuButton({
-      name: data.name,
-      button_type: data.button_type,
-      status: Number(data.status),
-      parent_id: data.parent_id || undefined,
-      sort: data.sort || undefined,
-      media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
-      enable_template: data.enable_template || false,
-      template_content: data.template_content || undefined,
-      sub_btns: data.sub_btns || undefined,
-    }),
+    mutationFn: (data: MenuButtonForm) => {
+      // Extract media URL from the array - now it should be strings only
+      let mediaUrl: string | null = null;
+      if (data.media_url && data.media_url.length > 0) {
+        mediaUrl = data.media_url[0]; // First URL string
+      }
+
+      const createData = {
+        name: data.name,
+        button_type: data.button_type,
+        status: Number(data.status),
+        parent_id: data.parent_id || undefined,
+        sort: data.sort || undefined,
+        media_url: mediaUrl,
+        enable_template: data.enable_template || false,
+        template_content: data.template_content || undefined,
+        sub_btns: data.sub_btns || undefined,
+      };
+
+      console.log('MenuButton Create Data:', createData);
+      console.log('Original media_url data:', data.media_url);
+
+      return menuButtonsService.createMenuButton(createData);
+    },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['menu-buttons'] })
       toast.success('Menu button created successfully!')
@@ -185,22 +217,37 @@ export function MenuButtonsMutateDrawer({
       onOpenChange(false)
     },
     onError: (error: any) => {
+      console.error('MenuButton Create Error:', error);
+      console.error('Error Response:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to create menu button')
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: MenuButtonForm) => menuButtonsService.updateMenuButton(currentRow!.id, {
-      name: data.name,
-      button_type: data.button_type,
-      status: Number(data.status),
-      parent_id: data.parent_id || undefined,
-      sort: data.sort || undefined,
-      media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
-      enable_template: data.enable_template || false,
-      template_content: data.template_content || undefined,
-      sub_btns: data.sub_btns || undefined,
-    }),
+    mutationFn: (data: MenuButtonForm) => {
+      // Extract media URL from the array - now it should be strings only
+      let mediaUrl: string | null = null;
+      if (data.media_url && data.media_url.length > 0) {
+        mediaUrl = data.media_url[0]; // First URL string
+      }
+
+      const updateData = {
+        name: data.name,
+        button_type: data.button_type,
+        status: Number(data.status),
+        parent_id: data.parent_id || undefined,
+        sort: data.sort || undefined,
+        media_url: mediaUrl,
+        enable_template: data.enable_template || false,
+        template_content: data.template_content || undefined,
+        sub_btns: data.sub_btns || undefined,
+      };
+
+      console.log('MenuButton Update Data:', updateData);
+      console.log('Original media_url data:', data.media_url);
+
+      return menuButtonsService.updateMenuButton(currentRow!.id, updateData);
+    },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['menu-buttons'] })
       toast.success('Menu button updated successfully!')
@@ -211,14 +258,23 @@ export function MenuButtonsMutateDrawer({
       onOpenChange(false)
     },
     onError: (error: any) => {
+      console.error('MenuButton Update Error:', error);
+      console.error('Error Response:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to update menu button')
     },
   })
 
   const onSubmit = (data: MenuButtonForm) => {
+    console.log('Form submitted with data:', data);
+    console.log('Is update mode:', isUpdate);
+    console.log('Form errors:', form.formState.errors);
+    console.log('Form is valid:', form.formState.isValid);
+    
     if (isUpdate) {
+      console.log('Calling updateMutation.mutate');
       updateMutation.mutate(data)
     } else {
+      console.log('Calling createMutation.mutate');
       createMutation.mutate(data)
     }
   }
@@ -323,7 +379,13 @@ export function MenuButtonsMutateDrawer({
                   <FormControl>
                     <MultiMediaUploader
                       value={field.value || []}
-                      onChange={field.onChange}
+                      onChange={(files) => {
+                        // Convert MediaLibraryItem objects to URL strings
+                        const urlStrings = files.map(file => 
+                          typeof file === 'string' ? file : file.url || file.file_path
+                        )
+                        field.onChange(urlStrings)
+                      }}
                       maxFiles={1}
                       className="my-2"
                       accept="image/*,video/*"
@@ -395,6 +457,28 @@ export function MenuButtonsMutateDrawer({
             form='menu-buttons-form' 
             type='submit'
             disabled={createMutation.isPending || updateMutation.isPending}
+            onClick={() => {
+              console.log('Submit button clicked');
+              console.log('Form state:', form.formState);
+              console.log('Form values:', form.getValues());
+              console.log('Form values - media_url:', form.getValues('media_url'));
+              console.log('Form values - media_url[0]:', form.getValues('media_url')?.[0]);
+              console.log('Form values - name:', form.getValues('name'));
+              console.log('Form values - button_type:', form.getValues('button_type'));
+              
+              // Try manual form submission
+              console.log('About to call form.handleSubmit(onSubmit)');
+              form.handleSubmit(
+                (data) => {
+                  console.log('Form validation passed, calling onSubmit');
+                  onSubmit(data);
+                },
+                (errors) => {
+                  console.log('Form validation failed with errors:', errors);
+                }
+              )();
+              console.log('form.handleSubmit(onSubmit) completed');
+            }}
           >
             {createMutation.isPending || updateMutation.isPending 
               ? 'Saving...' 

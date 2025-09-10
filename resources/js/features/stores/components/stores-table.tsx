@@ -83,7 +83,7 @@ export function StoresTable({ data, paginationMeta }: DataTableProps) {
     columnFilters: [
       { columnId: 'status', searchKey: 'status', type: 'array' },
       { columnId: 'recommand', searchKey: 'recommand', type: 'array' },
-      { columnId: 'menu_button_id', searchKey: 'menu_button_id', type: 'array' },
+      { columnId: 'menu_button', searchKey: 'menu_button_id', type: 'array' },
     ],
   })
 
@@ -137,7 +137,7 @@ export function StoresTable({ data, paginationMeta }: DataTableProps) {
             options: recommendationTypes,
           },
           {
-            columnId: 'menu_button_id',
+            columnId: 'menu_button',
             title: 'Category',
             options: menuButtonOptions,
           },

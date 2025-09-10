@@ -22,7 +22,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { storesService } from '@/services/stores-service'
-import { mediaService } from '@/services/media-service'
+import { mediaLibraryService, type MediaLibraryItem } from '@/services/media-library-service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import MDEditor from '@uiw/react-md-editor'
@@ -40,6 +40,28 @@ type StoresMutateDrawerProps = {
   onOpenChange: (open: boolean) => void
   currentRow?: Store
 }
+
+const mediaLibraryItemSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  original_name: z.string(),
+  file_path: z.string(),
+  file_size: z.number(),
+  mime_type: z.string(),
+  file_type: z.enum(['image', 'video', 'document', 'other']),
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+  duration: z.number().nullable(),
+  alt_text: z.string().nullable(),
+  description: z.string().nullable(),
+  tags: z.array(z.string()),
+  is_public: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  url: z.string().optional(),
+  formatted_size: z.string().optional(),
+  formatted_duration: z.string().optional(),
+})
 
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -87,13 +109,19 @@ export function StoresMutateDrawer({
   ]
 
   // Handle files that were deleted from the UI
-  const handleFilesDeleted = (files: string[]) => {
-    setDeletedFiles(prev => [...prev, ...files])
+  const handleFilesDeleted = (files: (string | MediaLibraryItem)[]) => {
+    // Convert MediaLibraryItem objects to URL strings for tracking
+    const urlStrings = files.map(file => 
+      typeof file === 'string' ? file : file.url || file.file_path
+    )
+    setDeletedFiles(prev => [...prev, ...urlStrings])
   }
 
   // Handle files that were uploaded during this session
-  const handleFilesUploaded = (files: string[]) => {
-    setUploadedFiles(prev => [...prev, ...files])
+  const handleFilesUploaded = (files: MediaLibraryItem[]) => {
+    // Convert MediaLibraryItem objects to URL strings for tracking
+    const urlStrings = files.map(file => file.url || file.file_path)
+    setUploadedFiles(prev => [...prev, ...urlStrings])
   }
 
   // Clean up files from server when form is saved or cancelled
@@ -102,15 +130,9 @@ export function StoresMutateDrawer({
     if (filesToCleanup.length === 0) return
 
     try {
-      // Delete files from server
-      for (const fileUrl of filesToCleanup) {
-        const cleanUrl = fileUrl.split('#')[0]
-        const filePath = mediaService.extractPathFromUrl(cleanUrl)
-        
-        if (filePath && !cleanUrl.startsWith('blob:')) {
-          await mediaService.deleteFile(filePath)
-        }
-      }
+      // For URL strings, we can't delete them through the media library API
+      // They'll be cleaned up by the server's file cleanup process
+      console.log('Files to cleanup:', filesToCleanup)
     } catch (error) {
       console.error('Failed to cleanup files:', error)
       // Don't show error to user as the main operation succeeded
@@ -124,15 +146,8 @@ export function StoresMutateDrawer({
     if (deletedFiles.length === 0) return
 
     try {
-      // Delete only the files that were removed from UI
-      for (const fileUrl of deletedFiles) {
-        const cleanUrl = fileUrl.split('#')[0]
-        const filePath = mediaService.extractPathFromUrl(cleanUrl)
-        
-        if (filePath && !cleanUrl.startsWith('blob:')) {
-          await mediaService.deleteFile(filePath)
-        }
-      }
+      // For URL strings, we can't delete them through the media library API
+      console.log('Deleted files to cleanup:', deletedFiles)
     } catch (error) {
       console.error('Failed to cleanup deleted files:', error)
       // Don't show error to user as the main operation succeeded
@@ -169,8 +184,16 @@ export function StoresMutateDrawer({
         open_hour: currentRow.open_hour,
         close_hour: currentRow.close_hour,
         recommand: currentRow.recommand,
-        media_url: currentRow.media_url && currentRow.media_url.trim() ? [currentRow.media_url] : [],
-        menu_urls: currentRow.menu_urls || [],
+        media_url: currentRow.media_url && currentRow.media_url.trim() ? [
+          currentRow.media_url.startsWith('http') 
+            ? currentRow.media_url 
+            : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${currentRow.media_url}`
+        ] : [],
+        menu_urls: currentRow.menu_urls ? currentRow.menu_urls.map((url: string) => 
+          url.startsWith('http') 
+            ? url 
+            : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${url}`
+        ) : [],
         sub_btns: currentRow.sub_btns,
         menu_button_id: currentRow.menu_button_id ? String(currentRow.menu_button_id) : 'none',
       } : {
@@ -429,7 +452,13 @@ export function StoresMutateDrawer({
                   <FormControl>
                     <MultiMediaUploader
                       value={field.value || []}
-                      onChange={field.onChange}
+                      onChange={(files) => {
+                        // Convert MediaLibraryItem objects to URL strings
+                        const urlStrings = files.map(file => 
+                          typeof file === 'string' ? file : file.url || file.file_path
+                        )
+                        field.onChange(urlStrings)
+                      }}
                       maxFiles={1}
                       className="my-2"
                       accept="image/*,video/*"
@@ -459,7 +488,13 @@ export function StoresMutateDrawer({
                   <FormControl>
                     <MultiMediaUploader
                       value={field.value || []}
-                      onChange={field.onChange}
+                      onChange={(files) => {
+                        // Convert MediaLibraryItem objects to URL strings
+                        const urlStrings = files.map(file => 
+                          typeof file === 'string' ? file : file.url || file.file_path
+                        )
+                        field.onChange(urlStrings)
+                      }}
                       maxFiles={10}
                       className="my-2"
                       accept="image/*"

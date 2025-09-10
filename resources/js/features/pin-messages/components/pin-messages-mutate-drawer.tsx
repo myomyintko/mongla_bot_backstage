@@ -30,13 +30,35 @@ import { useTheme } from '@/context/theme-provider'
 import { statuses, sortOptions } from '../data/data'
 import { PinMessage } from '../data/schema'
 import { pinMessagesService } from '@/services/pin-messages-service'
-import { mediaService } from '@/services/media-service'
+import { mediaLibraryService, type MediaLibraryItem } from '@/services/media-library-service'
 
 type PinMessagesMutateDrawerProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentRow?: PinMessage
 }
+
+const mediaLibraryItemSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  original_name: z.string(),
+  file_path: z.string(),
+  file_size: z.number(),
+  mime_type: z.string(),
+  file_type: z.enum(['image', 'video', 'document', 'other']),
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+  duration: z.number().nullable(),
+  alt_text: z.string().nullable(),
+  description: z.string().nullable(),
+  tags: z.array(z.string()),
+  is_public: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  url: z.string().optional(),
+  formatted_size: z.string().optional(),
+  formatted_duration: z.string().optional(),
+})
 
 const formSchema = z.object({
   content: z.string().nullable().optional(),
@@ -58,21 +80,27 @@ export function PinMessagesMutateDrawer({
   const queryClient = useQueryClient()
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
 
+  // Handle files that were deleted from the UI
+  const handleFilesDeleted = (_files: (string | MediaLibraryItem)[]) => {
+    // For pin messages, we don't need to track deleted files separately
+    // since we only have uploaded files to clean up
+  }
+
+  // Handle files that were uploaded during this session
+  const handleFilesUploaded = (files: MediaLibraryItem[]) => {
+    // Convert MediaLibraryItem objects to URL strings for tracking
+    const urlStrings = files.map(file => file.url || file.file_path)
+    setUploadedFiles(prev => [...prev, ...urlStrings])
+  }
 
   // Clean up files from server when form is cancelled
   const cleanupFiles = async () => {
     if (uploadedFiles.length === 0) return
 
     try {
-      // Delete files from server
-      for (const fileUrl of uploadedFiles) {
-        const cleanUrl = fileUrl.split('#')[0]
-        const filePath = mediaService.extractPathFromUrl(cleanUrl)
-
-        if (filePath && !cleanUrl.startsWith('blob:')) {
-          await mediaService.deleteFile(filePath)
-        }
-      }
+      // For URL strings, we can't delete them through the media library API
+      // They'll be cleaned up by the server's file cleanup process
+      console.log('Files to cleanup:', uploadedFiles)
     } catch (error) {
       console.error('Failed to cleanup files:', error)
       // Don't show error to user as the main operation succeeded
@@ -100,7 +128,11 @@ export function PinMessagesMutateDrawer({
         content: currentRow.content,
         status: String(currentRow.status),
         sort: currentRow.sort ? String(currentRow.sort) : null,
-        media_url: currentRow.media_url && currentRow.media_url.trim() ? [currentRow.media_url] : [],
+        media_url: currentRow.media_url && currentRow.media_url.trim() ? [
+          currentRow.media_url.startsWith('http') 
+            ? currentRow.media_url 
+            : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${currentRow.media_url}`
+        ] : [],
         btn_name: currentRow.btn_name,
         btn_link: currentRow.btn_link,
       } : {
@@ -303,12 +335,25 @@ export function PinMessagesMutateDrawer({
                      <MultiMediaUploader
                        value={field.value || []}
                        onChange={(files) => {
-                         field.onChange(files)
-                         setUploadedFiles(files)
+                         // Convert MediaLibraryItem objects to URL strings
+                         const urlStrings = files.map(file => 
+                           typeof file === 'string' ? file : file.url || file.file_path
+                         )
+                         field.onChange(urlStrings)
                        }}
                        maxFiles={1}
                        accept="image/*,video/*"
+                       listType="picture-card"
+                       showUploadList={true}
                        showDownloadButton={false}
+                       uploadPath="pin-messages"
+                       onFilesDeleted={handleFilesDeleted}
+                       onFilesUploaded={handleFilesUploaded}
+                       onPreview={(file) => {
+                         if (file.url) {
+                           window.open(file.url, '_blank');
+                         }
+                       }}
                      />
                   </FormControl>
                   <FormMessage />

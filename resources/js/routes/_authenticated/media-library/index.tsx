@@ -1,0 +1,7 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { MediaLibrary } from '@/features/media-library'
+
+
+export const Route = createFileRoute('/_authenticated/media-library/')({
+  component: MediaLibrary,
+})

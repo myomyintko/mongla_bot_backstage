@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             MenuButtonSeeder::class,
             StoreSeeder::class,
+            AdvertisementSeeder::class,
+            PinMessageSeeder::class,
         ]);
     }
 }
