@@ -28,6 +28,7 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -40,6 +41,25 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        // First check if user exists and has active status
+        $user = \App\Models\User::where('email', $this->email)->first();
+        
+        if (!$user) {
+            RateLimiter::hit($this->throttleKey());
+            throw ValidationException::withMessages([
+                'email' => __('auth.failed'),
+            ]);
+        }
+
+        // Check if user is suspended (suspended users cannot login)
+        if ($user->status === \App\Models\User::STATUS_SUSPENDED) {
+            RateLimiter::hit($this->throttleKey());
+            throw ValidationException::withMessages([
+                'email' => 'Your account has been suspended. Please contact an administrator for assistance.',
+            ]);
+        }
+
+        // Attempt authentication with remember me
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 

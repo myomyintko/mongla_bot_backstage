@@ -15,6 +15,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { CanEdit, CanDelete } from '@/components/permission/permission-gate'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
 import { statuses } from '../data/data'
 import { type Advertisement } from '../data/schema'
@@ -60,7 +61,8 @@ export function DataTableBulkActions<TData>({
   return (
     <>
       <BulkActionsToolbar table={table} entityName='advertisements'>
-        <DropdownMenu>
+        <CanEdit resource="advertisements">
+          <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
@@ -91,7 +93,8 @@ export function DataTableBulkActions<TData>({
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </CanEdit>
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -112,24 +115,26 @@ export function DataTableBulkActions<TData>({
           </TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant='destructive'
-              size='icon'
-              onClick={() => setShowDeleteConfirm(true)}
-              className='size-8'
-              aria-label='Delete selected tasks'
-              title='Delete selected tasks'
-            >
-              <Trash2 />
-              <span className='sr-only'>Delete selected tasks</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Delete selected tasks</p>
-          </TooltipContent>
-        </Tooltip>
+        <CanDelete resource="advertisements">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='destructive'
+                size='icon'
+                onClick={() => setShowDeleteConfirm(true)}
+                className='size-8'
+                aria-label='Delete selected tasks'
+                title='Delete selected tasks'
+              >
+                <Trash2 />
+                <span className='sr-only'>Delete selected tasks</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete selected tasks</p>
+            </TooltipContent>
+          </Tooltip>
+        </CanDelete>
       </BulkActionsToolbar>
 
       <AdvertisementsMultiDeleteDialog

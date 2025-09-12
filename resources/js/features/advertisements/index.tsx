@@ -6,11 +6,13 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { CanView } from '@/components/permission/permission-gate'
 import { AdvertisementsDialogs } from './components/advertisements-dialogs'
 import { AdvertisementsProvider } from './components/advertisements-provider'
 import { AdvertisementsPrimaryButtons } from './components/advertisements-primary-buttons'
 import { AdvertisementsTable } from './components/advertisements-table'
 import { advertisementsService } from '@/services/advertisements-service'
+import { ForbiddenError } from '../errors/forbidden'
 
 const route = getRouteApi('/_authenticated/advertisements/')
 
@@ -47,7 +49,8 @@ export function Advertisements() {
   }
 
   return (
-    <AdvertisementsProvider>
+    <CanView resource="advertisements" fallback={<ForbiddenError/>}>
+      <AdvertisementsProvider>
       <Header fixed>  
         <Search />
         <div className='ms-auto flex items-center space-x-4'>
@@ -81,6 +84,7 @@ export function Advertisements() {
       </Main>
 
       <AdvertisementsDialogs />
-    </AdvertisementsProvider>
+      </AdvertisementsProvider>
+    </CanView>
   )
 }

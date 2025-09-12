@@ -3,7 +3,9 @@
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { showSubmittedData } from '@/lib/show-submitted-data'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -24,20 +26,19 @@ import {
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/password-input'
 import { SelectDropdown } from '@/components/select-dropdown'
-import { roles } from '../data/data'
-import { type User } from '../data/schema'
+import { type User, userService } from '@/services/user-service'
 
 const formSchema = z
   .object({
     firstName: z.string().min(1, 'First Name is required.'),
     lastName: z.string().min(1, 'Last Name is required.'),
     username: z.string().min(1, 'Username is required.'),
-    phoneNumber: z.string().min(1, 'Phone number is required.'),
     email: z.email({
       error: (iss) => (iss.input === '' ? 'Email is required.' : undefined),
     }),
     password: z.string().transform((pwd) => pwd.trim()),
     role: z.string().min(1, 'Role is required.'),
+    status: z.string().min(1, 'Status is required.'),
     confirmPassword: z.string().transform((pwd) => pwd.trim()),
     isEdit: z.boolean(),
   })
@@ -105,32 +106,145 @@ export function UsersActionDialog({
   onOpenChange,
 }: UserActionDialogProps) {
   const isEdit = !!currentRow
+  const queryClient = useQueryClient()
+
+  // Fetch available roles from API
+  const { data: availableRoles, isLoading: isLoadingRoles } = useQuery({
+    queryKey: ['user-roles'],
+    queryFn: () => userService.getAvailableRoles(),
+    enabled: open,
+  })
+  
   const form = useForm<UserForm>({
     resolver: zodResolver(formSchema),
-    defaultValues: isEdit
-      ? {
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      username: '',
+      email: '',
+      role: '',
+      status: '1',
+      password: '',
+      confirmPassword: '',
+      isEdit: false,
+    },
+  })
+
+  // Reset form when dialog opens or currentRow changes
+  useEffect(() => {
+    if (open) {
+      if (isEdit && currentRow) {
+        // For edit mode, use the current row data
+        const defaultValues = {
           ...currentRow,
+          status: String(currentRow.status),
           password: '',
           confirmPassword: '',
-          isEdit,
+          isEdit: true,
         }
-      : {
+        form.reset(defaultValues)
+      } else {
+        // For create mode, use default values
+        const defaultValues = {
           firstName: '',
           lastName: '',
           username: '',
           email: '',
           role: '',
-          phoneNumber: '',
+          status: '1',
           password: '',
           confirmPassword: '',
-          isEdit,
-        },
+          isEdit: false,
+        }
+        form.reset(defaultValues)
+      }
+    }
+  }, [open, isEdit, currentRow, form])
+
+  // Additional effect to ensure form is updated when currentRow changes
+  useEffect(() => {
+    if (open && isEdit && currentRow) {
+      form.reset({
+        ...currentRow,
+        status: String(currentRow.status),
+        password: '',
+        confirmPassword: '',
+        isEdit: true,
+      })
+    }
+  }, [currentRow, open, isEdit, form])
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      form.reset({
+        firstName: '',
+        lastName: '',
+        username: '',
+        email: '',
+        role: '',
+        status: '1',
+        password: '',
+        confirmPassword: '',
+        isEdit: false,
+      })
+    }
+  }, [open, form])
+
+  const createMutation = useMutation({
+    mutationFn: (data: UserForm) => {
+      const createData = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        status: parseInt(data.status) as 1 | 2 | 4,
+        role: data.role,
+      }
+      return userService.createUser(createData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User created successfully!')
+      form.reset()
+      onOpenChange(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to create user')
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (data: UserForm) => {
+      const updateData = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        username: data.username,
+        email: data.email,
+        password: data.password || undefined,
+        status: parseInt(data.status) as 1 | 2 | 4,
+        role: data.role,
+      }
+      return userService.updateUser(currentRow!.id, updateData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User updated successfully!')
+      form.reset()
+      onOpenChange(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update user')
+    },
   })
 
   const onSubmit = (values: UserForm) => {
-    form.reset()
-    showSubmittedData(values)
-    onOpenChange(false)
+    if (isEdit) {
+      updateMutation.mutate(values)
+    } else {
+      createMutation.mutate(values)
+    }
   }
 
   const isPasswordTouched = !!form.formState.dirtyFields.password
@@ -139,7 +253,9 @@ export function UsersActionDialog({
     <Dialog
       open={open}
       onOpenChange={(state) => {
-        form.reset()
+        if (!state) {
+          form.reset()
+        }
         onOpenChange(state)
       }}
     >
@@ -236,38 +352,42 @@ export function UsersActionDialog({
               />
               <FormField
                 control={form.control}
-                name='phoneNumber'
+                name='role'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
-                      Phone Number
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder='+123456789'
-                        className='col-span-4'
-                        {...field}
-                      />
-                    </FormControl>
+                    <FormLabel className='col-span-2 text-end'>Role</FormLabel>
+                    <SelectDropdown
+                      value={field.value || ''}
+                      onValueChange={field.onChange}
+                      placeholder={isLoadingRoles ? 'Loading roles...' : 'Select a role'}
+                      className='col-span-4'
+                      disabled={isLoadingRoles}
+                      isControlled={true}
+                      items={availableRoles?.map(({ label, value }) => ({
+                        label,
+                        value,
+                      })) || []}
+                    />
                     <FormMessage className='col-span-4 col-start-3' />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name='role'
+                name='status'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>Role</FormLabel>
+                    <FormLabel className='col-span-2 text-end'>Status</FormLabel>
                     <SelectDropdown
                       defaultValue={field.value}
                       onValueChange={field.onChange}
-                      placeholder='Select a role'
+                      placeholder='Select status'
                       className='col-span-4'
-                      items={roles.map(({ label, value }) => ({
-                        label,
-                        value,
-                      }))}
+                      items={[
+                        { label: 'Active', value: '1' },
+                        { label: 'Inactive', value: '2' },
+                        { label: 'Suspended', value: '4' },
+                      ]}
                     />
                     <FormMessage className='col-span-4 col-start-3' />
                   </FormItem>
@@ -316,8 +436,15 @@ export function UsersActionDialog({
           </Form>
         </div>
         <DialogFooter>
-          <Button type='submit' form='user-form'>
-            Save changes
+          <Button 
+            type='submit' 
+            form='user-form'
+            disabled={createMutation.isPending || updateMutation.isPending}
+          >
+            {createMutation.isPending || updateMutation.isPending 
+              ? 'Saving...' 
+              : isEdit ? 'Update User' : 'Create User'
+            }
           </Button>
         </DialogFooter>
       </DialogContent>

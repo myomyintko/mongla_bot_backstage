@@ -63,9 +63,16 @@ export const menuButtonsColumns: ColumnDef<MenuButton>[] = [
     cell: ({ row }) => {
       const buttonType = row.getValue('button_type') as string
       return (
-        <div className='flex w-[100px] items-center gap-2'>
-          <span className='capitalize'>{buttonType}</span>
-        </div>
+        <Badge 
+          variant="outline"
+          className={
+            buttonType === 'store' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200' :
+            buttonType === 'url' ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200' :
+            'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
+          }
+        >
+          {buttonType.charAt(0).toUpperCase() + buttonType.slice(1)}
+        </Badge>
       )
     },
     filterFn: (row, _id, value) => {
@@ -83,13 +90,28 @@ export const menuButtonsColumns: ColumnDef<MenuButton>[] = [
       )
 
       if (!status) {
-        return null
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            Unknown
+          </Badge>
+        )
       }
 
       return (
-        <div className='flex w-[100px] items-center gap-2'>
-          <span>{status.label}</span>
-        </div>
+        <Badge 
+          variant={
+            status.value === '1' ? 'default' : 
+            status.value === '2' ? 'secondary' : 
+            'destructive'
+          }
+          className={
+            status.value === '1' ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200' :
+            status.value === '2' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200' :
+            'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200'
+          }
+        >
+          {status.label}
+        </Badge>
       )
     },
     filterFn: (row, id, value) => {
@@ -106,12 +128,16 @@ export const menuButtonsColumns: ColumnDef<MenuButton>[] = [
       const parent = row.original.parent
 
       if (!parentId) {
-        return <Badge variant="outline">Root</Badge>
+        return (
+          <Badge variant="outline" className="bg-purple-100 text-purple-800 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-200">
+            Root
+          </Badge>
+        )
       }
 
       return (
         <div className='flex items-center gap-2'>
-          <span className='text-sm text-muted-foreground'>
+          <span className='text-sm font-medium text-muted-foreground'>
             {parent?.name || `ID: ${parentId}`}
           </span>
         </div>
@@ -138,14 +164,17 @@ export const menuButtonsColumns: ColumnDef<MenuButton>[] = [
     cell: ({ row }) => {
       const sort = row.getValue('sort') as number | null
       return (
-        <div className='text-center'>
-          {sort ?? 0}
+        <div className='flex items-center space-x-1'>
+          <span className='text-sm font-medium'>{sort ?? 0}</span>
         </div>
       )
     },
   },
   {
     id: 'actions',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Actions' />
+    ),
     cell: ({ row }) => <DataTableRowActions row={row} />,
   },
 ]

@@ -3,6 +3,7 @@ import { type Table } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DataTableFacetedFilter } from './faceted-filter'
+import { InfiniteDataTableFacetedFilter } from './infinite-faceted-filter'
 import { DataTableViewOptions } from './view-options'
 import { useDebouncedSearch } from '@/hooks/use-debounced-search'
 import { useEffect } from 'react'
@@ -19,6 +20,12 @@ type DataTableToolbarProps<TData> = {
       value: string
       icon?: React.ComponentType<{ className?: string }>
     }[]
+    infinite?: boolean
+    hasNextPage?: boolean
+    isFetchingNextPage?: boolean
+    onLoadMore?: () => void
+    searchValue?: string
+    onSearchChange?: (value: string) => void
   }[]
 }
 
@@ -73,6 +80,23 @@ export function DataTableToolbar<TData>({
           {filters.map((filter) => {
             const column = table.getColumn(filter.columnId)
             if (!column) return null
+            
+            if (filter.infinite) {
+              return (
+                <InfiniteDataTableFacetedFilter
+                  key={filter.columnId}
+                  column={column}
+                  title={filter.title}
+                  options={filter.options}
+                  hasNextPage={filter.hasNextPage}
+                  isFetchingNextPage={filter.isFetchingNextPage}
+                  onLoadMore={filter.onLoadMore}
+                  searchValue={filter.searchValue}
+                  onSearchChange={filter.onSearchChange}
+                />
+              )
+            }
+            
             return (
               <DataTableFacetedFilter
                 key={filter.columnId}

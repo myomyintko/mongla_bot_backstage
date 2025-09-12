@@ -6,11 +6,13 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { CanView } from '@/components/permission/permission-gate'
 import { storesService } from '@/services/stores-service'
 import { StoresDialogs } from './components/stores-dialogs'
 import { StoresProvider } from './components/stores-provider'
 import { StoresPrimaryButtons } from './components/stores-primary-buttons'
 import { StoresTable } from './components/stores-table'
+import { ForbiddenError } from '../errors/forbidden'
 
 const route = getRouteApi('/_authenticated/stores/')
 
@@ -48,40 +50,42 @@ export function Stores() {
   }
 
   return (
-    <StoresProvider>
-      <Header fixed>  
-        <Search />
-        <div className='ms-auto flex items-center space-x-4'>
-          <ThemeSwitch />
-          <ConfigDrawer />
-          <ProfileDropdown />
-        </div>
-      </Header>
-
-      <Main>
-        <div className='mb-2 flex flex-wrap items-center justify-between space-y-2 gap-x-4'>
-          <div>
-            <h2 className='text-2xl font-bold tracking-tight'>Stores</h2>
-            <p className='text-muted-foreground'>
-              Manage your store hierarchy and templates.
-            </p>
+    <CanView resource="stores" fallback={<ForbiddenError/>}>
+      <StoresProvider>
+        <Header fixed>  
+          <Search />
+          <div className='ms-auto flex items-center space-x-4'>
+            <ThemeSwitch />
+            <ConfigDrawer />
+            <ProfileDropdown />
           </div>
-          <StoresPrimaryButtons />
-        </div>
-        <div className='-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-y-0 lg:space-x-12'>
-          <StoresTable 
-            data={storesData?.data || []} 
-            paginationMeta={storesData ? {
-              current_page: storesData.current_page,
-              last_page: storesData.last_page,
-              per_page: storesData.per_page,
-              total: storesData.total,
-            } : undefined}
-          />
-        </div>
-      </Main>
+        </Header>
 
-      <StoresDialogs />
-    </StoresProvider>
+        <Main>
+          <div className='mb-2 flex flex-wrap items-center justify-between space-y-2 gap-x-4'>
+            <div>
+              <h2 className='text-2xl font-bold tracking-tight'>Stores</h2>
+              <p className='text-muted-foreground'>
+                Manage your store hierarchy and templates.
+              </p>
+            </div>
+            <StoresPrimaryButtons />
+          </div>
+          <div className='-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-y-0 lg:space-x-12'>
+            <StoresTable 
+              data={storesData?.data || []} 
+              paginationMeta={storesData ? {
+                current_page: storesData.current_page,
+                last_page: storesData.last_page,
+                per_page: storesData.per_page,
+                total: storesData.total,
+              } : undefined}
+            />
+          </div>
+        </Main>
+
+        <StoresDialogs />
+      </StoresProvider>
+    </CanView>
   )
 }

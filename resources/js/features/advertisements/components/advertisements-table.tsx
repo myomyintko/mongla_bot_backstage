@@ -25,7 +25,7 @@ import { type Advertisement } from '../data/schema'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 import { advertisementsColumns as columns } from './advertisements-columns'
 import { storesService } from '@/services/stores-service'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 
 const route = getRouteApi('/_authenticated/advertisements/')
 
@@ -43,20 +43,36 @@ export function AdvertisementsTable({ data, paginationMeta }: DataTableProps) {
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [storeSearchValue, setStoreSearchValue] = useState('')
 
-  // Fetch stores for store filter
-  const { data: storesData } = useQuery({
-    queryKey: ['stores', 'all'],
-    queryFn: () => storesService.getStores({ 
-      per_page: 1000 // Fetch all stores
+  // Fetch stores for store filter with infinite query
+  const {
+    data: storesData,
+    fetchNextPage: fetchNextStores,
+    hasNextPage: hasNextStoresPage,
+    isFetchingNextPage: isFetchingNextStoresPage,
+  } = useInfiniteQuery({
+    queryKey: ['stores', 'infinite', storeSearchValue],
+    queryFn: ({ pageParam = 1 }) => storesService.getStores({
+      page: pageParam,
+      per_page: 20,
+      search: storeSearchValue || undefined,
     }),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.current_page < lastPage.last_page) {
+        return lastPage.current_page + 1
+      }
+      return undefined
+    },
+    initialPageParam: 1,
   })
 
-  const stores = storesData?.data || []
+  // Flatten all pages
+  const allStores = storesData?.pages.flatMap(page => page.data) || []
   const storeOptions = [
     { label: 'All Stores', value: 'all' },
     { label: 'No Store', value: 'none' },
-    ...stores.map((store) => ({
+    ...allStores.map((store) => ({
       label: store.name,
       value: String(store.id),
     })),
@@ -133,6 +149,12 @@ export function AdvertisementsTable({ data, paginationMeta }: DataTableProps) {
             columnId: 'store_id',
             title: 'Store',
             options: storeOptions,
+            infinite: true,
+            hasNextPage: hasNextStoresPage,
+            isFetchingNextPage: isFetchingNextStoresPage,
+            onLoadMore: () => fetchNextStores(),
+            searchValue: storeSearchValue,
+            onSearchChange: setStoreSearchValue,
           },
         ]}
       />

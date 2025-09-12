@@ -15,12 +15,7 @@ export const users = Array.from({ length: 500 }, () => {
       .toLocaleLowerCase(),
     email: faker.internet.email({ firstName }).toLocaleLowerCase(),
     phoneNumber: faker.phone.number({ style: 'international' }),
-    status: faker.helpers.arrayElement([
-      'active',
-      'inactive',
-      'invited',
-      'suspended',
-    ]),
+    status: faker.helpers.arrayElement([1, 2, 4]),
     role: faker.helpers.arrayElement([
       'superadmin',
       'admin',

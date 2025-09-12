@@ -1,5 +1,5 @@
 import { MultiMediaUploader } from '@/components/multi-media-uploader'
-import { SearchableSelect } from '@/components/searchable-select'
+import { SelectDropdown } from '@/components/select-dropdown'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -19,18 +19,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { useTheme } from '@/context/theme-provider'
+import { type MediaLibraryItem } from '@/services/media-library-service'
+import { pinMessagesService } from '@/services/pin-messages-service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import MDEditor from '@uiw/react-md-editor'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { useTheme } from '@/context/theme-provider'
-import { statuses, sortOptions } from '../data/data'
+import { statuses } from '../data/data'
 import { PinMessage } from '../data/schema'
-import { pinMessagesService } from '@/services/pin-messages-service'
-import { mediaLibraryService, type MediaLibraryItem } from '@/services/media-library-service'
 
 type PinMessagesMutateDrawerProps = {
   open: boolean
@@ -38,32 +38,10 @@ type PinMessagesMutateDrawerProps = {
   currentRow?: PinMessage
 }
 
-const mediaLibraryItemSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  original_name: z.string(),
-  file_path: z.string(),
-  file_size: z.number(),
-  mime_type: z.string(),
-  file_type: z.enum(['image', 'video', 'document', 'other']),
-  width: z.number().nullable(),
-  height: z.number().nullable(),
-  duration: z.number().nullable(),
-  alt_text: z.string().nullable(),
-  description: z.string().nullable(),
-  tags: z.array(z.string()),
-  is_public: z.boolean(),
-  created_at: z.string(),
-  updated_at: z.string(),
-  url: z.string().optional(),
-  formatted_size: z.string().optional(),
-  formatted_duration: z.string().optional(),
-})
-
 const formSchema = z.object({
-  content: z.string().nullable().optional(),
+  content: z.string().min(1, 'Content is required.'),
   status: z.string().min(1, 'Please select a status.'),
-  sort: z.string().nullable().optional(),
+  sort: z.number().nullable().optional(),
   media_url: z.array(z.string()).optional(),
   btn_name: z.string().nullable().optional(),
   btn_link: z.string().nullable().optional(),
@@ -112,7 +90,7 @@ export function PinMessagesMutateDrawer({
   const form = useForm<PinMessageForm>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      content: null,
+      content: '',
       status: '1',
       sort: null,
       media_url: [],
@@ -125,9 +103,9 @@ export function PinMessagesMutateDrawer({
   useEffect(() => {
     if (open) {
       const defaultValues = currentRow ? {
-        content: currentRow.content,
+        content: currentRow.content || '',
         status: String(currentRow.status),
-        sort: currentRow.sort ? String(currentRow.sort) : null,
+        sort: currentRow.sort ? Number(currentRow.sort) : null,
         media_url: currentRow.media_url && currentRow.media_url.trim() ? [
           currentRow.media_url.startsWith('http') 
             ? currentRow.media_url 
@@ -136,7 +114,7 @@ export function PinMessagesMutateDrawer({
         btn_name: currentRow.btn_name,
         btn_link: currentRow.btn_link,
       } : {
-        content: null,
+        content: '',
         status: '1',
         sort: null,
         media_url: [],
@@ -226,17 +204,18 @@ export function PinMessagesMutateDrawer({
             onSubmit={form.handleSubmit(onSubmit)}
             className='flex-1 space-y-6 overflow-y-auto px-4'
           >
+             {/* Content */}
              <FormField
                control={form.control}
                name='content'
                render={({ field }) => (
                  <FormItem>
-                   <FormLabel>Content</FormLabel>
+                   <FormLabel>Content <span className="text-red-500">*</span></FormLabel>
                    <FormControl>
                      <div className="mt-2">
                        <MDEditor
                          value={field.value || ''}
-                         onChange={(value) => field.onChange(value || null)}
+                         onChange={(value) => field.onChange(value || '')}
                          data-color-mode={resolvedTheme}
                          height={300}
                          preview="edit"
@@ -248,6 +227,7 @@ export function PinMessagesMutateDrawer({
                  </FormItem>
                )}
              />
+             {/* Button Configuration */}
              <FormField
                control={form.control}
                name='btn_name'
@@ -265,20 +245,19 @@ export function PinMessagesMutateDrawer({
                  </FormItem>
                )}
              />
+            {/* Status & Organization */}
             <FormField
               control={form.control}
               name='status'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status</FormLabel>
+                  <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
-                    <SearchableSelect
-                      value={field.value}
+                    <SelectDropdown
+                      defaultValue={field.value}
                       onValueChange={field.onChange}
                       placeholder='Select status'
-                      searchPlaceholder='Search status...'
-                      emptyMessage='No status found.'
-                      options={statuses}
+                      items={statuses}
                     />
                   </FormControl>
                   <FormMessage />
@@ -292,16 +271,12 @@ export function PinMessagesMutateDrawer({
                  <FormItem>
                    <FormLabel>Sort Order</FormLabel>
                    <FormControl>
-                     <SearchableSelect
-                       options={[
-                         { label: 'No sort order', value: '' },
-                         ...sortOptions,
-                       ]}
+                     <Input
+                       {...field}
+                       type='number'
+                       placeholder='Enter sort order'
                        value={field.value || ''}
-                       onValueChange={(value) => field.onChange(value || null)}
-                       placeholder='Select sort order'
-                       searchPlaceholder='Search sort order...'
-                       emptyMessage='No sort order found.'
+                       onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
                      />
                    </FormControl>
                    <FormMessage />
@@ -325,6 +300,7 @@ export function PinMessagesMutateDrawer({
                  </FormItem>
                )}
              />
+            {/* Media */}
             <FormField
               control={form.control}
               name='media_url'

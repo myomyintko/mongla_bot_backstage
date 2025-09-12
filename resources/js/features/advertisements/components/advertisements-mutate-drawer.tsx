@@ -1,5 +1,6 @@
 import { MultiMediaUploader } from '@/components/multi-media-uploader'
-import { SearchableSelect } from '@/components/searchable-select'
+import { InfiniteSearchableSelect } from '@/components/infinite-searchable-select'
+import { SelectDropdown } from '@/components/select-dropdown'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -20,7 +21,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import MDEditor from '@uiw/react-md-editor'
 import { useForm } from 'react-hook-form'
 import { useState, useEffect } from 'react'
@@ -31,7 +32,7 @@ import { statuses, frequencyOptions } from '../data/data'
 import { Advertisement } from '../data/schema'
 import { advertisementsService } from '@/services/advertisements-service'
 import { storesService } from '@/services/stores-service'
-import { mediaLibraryService, type MediaLibraryItem } from '@/services/media-library-service'
+import { type MediaLibraryItem } from '@/services/media-library-service'
 
 type AdvertisementsMutateDrawerProps = {
   open: boolean
@@ -39,37 +40,16 @@ type AdvertisementsMutateDrawerProps = {
   currentRow?: Advertisement
 }
 
-const mediaLibraryItemSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  original_name: z.string(),
-  file_path: z.string(),
-  file_size: z.number(),
-  mime_type: z.string(),
-  file_type: z.enum(['image', 'video', 'document', 'other']),
-  width: z.number().nullable(),
-  height: z.number().nullable(),
-  duration: z.number().nullable(),
-  alt_text: z.string().nullable(),
-  description: z.string().nullable(),
-  tags: z.array(z.string()),
-  is_public: z.boolean(),
-  created_at: z.string(),
-  updated_at: z.string(),
-  url: z.string().optional(),
-  formatted_size: z.string().optional(),
-  formatted_duration: z.string().optional(),
-})
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
-  description: z.string().nullable().optional(),
+  description: z.string().min(1, 'Description is required.'),
   status: z.string().min(1, 'Please select a status.'),
-  store_id: z.string().optional(),
-  media_url: z.array(z.string()).optional(), 
-  start_date: z.string().nullable().optional(),
-  end_date: z.string().nullable().optional(),
-  frequency_cap_minutes: z.string().nullable().optional(),
+  store_id: z.string().nullable().optional(),
+  media_url: z.array(z.string()).min(1, 'At least one media file is required.'), 
+  start_date: z.string().min(1, 'Start date is required.'),
+  end_date: z.string().min(1, 'End date is required.'),
+  frequency_cap_minutes: z.string().min(1, 'Please select frequency cap.'),
 })
 type AdvertisementForm = z.infer<typeof formSchema>
 
@@ -84,22 +64,38 @@ export function AdvertisementsMutateDrawer({
   const [deletedFiles, setDeletedFiles] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
 
-  // Fetch stores for dropdown
-  const { data: storesData } = useQuery({
-    queryKey: ['stores', 'all'],
-    queryFn: () => storesService.getStores({ 
-      per_page: 1000 // Fetch all stores
-    }),
+  // Fetch stores for dropdown with infinite scroll
+  const {
+    data: storesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteQuery({
+    queryKey: ['stores', 'advertisement-selection'],
+    queryFn: ({ pageParam = 1 }) => 
+      storesService.getStores({ 
+        page: pageParam,
+        per_page: 20
+      }),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.current_page < lastPage.last_page) {
+        return lastPage.current_page + 1
+      }
+      return undefined
+    },
+    initialPageParam: 1,
     enabled: open, // Only fetch when drawer is open
   })
 
-  const stores = storesData?.data || []
+  // Flatten all pages
+  const allStores = storesData?.pages.flatMap(page => page.data) || []
   const storeOptions = [
     { label: 'No Store', value: 'none' },
-    ...stores.map((store) => ({
+    ...allStores.map((store) => ({
       label: store.name,
       value: String(store.id),
-    })),
+    }))
   ]
 
   // Handle files that were deleted from the UI
@@ -154,13 +150,13 @@ export function AdvertisementsMutateDrawer({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
-      description: null,
+      description: '',
       status: '1',
-      store_id: 'none',
+      store_id: '',
       media_url: [],
-      start_date: null,
-      end_date: null,
-      frequency_cap_minutes: null,
+      start_date: '',
+      end_date: '',
+      frequency_cap_minutes: '',
     },
   })
 
@@ -169,7 +165,7 @@ export function AdvertisementsMutateDrawer({
     if (open) {
       const defaultValues = currentRow ? {
         title: currentRow.title,
-        description: currentRow.description,
+        description: currentRow.description || '',
         status: String(currentRow.status),
         store_id: currentRow.store_id ? String(currentRow.store_id) : 'none',
         media_url: currentRow.media_url && currentRow.media_url.trim() ? [
@@ -177,18 +173,18 @@ export function AdvertisementsMutateDrawer({
             ? currentRow.media_url 
             : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${currentRow.media_url}`
         ] : [],
-        start_date: currentRow.start_date ? new Date(currentRow.start_date).toISOString().slice(0, 16) : null,
-        end_date: currentRow.end_date ? new Date(currentRow.end_date).toISOString().slice(0, 16) : null,
-        frequency_cap_minutes: currentRow.frequency_cap_minutes ? String(currentRow.frequency_cap_minutes) : null,
+        start_date: currentRow.start_date ? new Date(currentRow.start_date).toISOString().slice(0, 16) : '',
+        end_date: currentRow.end_date ? new Date(currentRow.end_date).toISOString().slice(0, 16) : '',
+        frequency_cap_minutes: currentRow.frequency_cap_minutes ? String(currentRow.frequency_cap_minutes) : '',
       } : {
         title: '',
-        description: null,
+        description: '',
         status: '1',
         store_id: 'none',
         media_url: [],
-        start_date: null,
-        end_date: null,
-        frequency_cap_minutes: null,
+        start_date: '',
+        end_date: '',
+        frequency_cap_minutes: '',
       }
 
       form.reset(defaultValues)
@@ -200,9 +196,9 @@ export function AdvertisementsMutateDrawer({
   const createMutation = useMutation({
     mutationFn: (data: AdvertisementForm) => advertisementsService.createAdvertisement({
       title: data.title,
-      description: data.description || undefined,
+      description: data.description,
       status: Number(data.status),
-      store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : undefined,
+      store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : null,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
       start_date: data.start_date ? new Date(data.start_date).toISOString() : undefined,
       end_date: data.end_date ? new Date(data.end_date).toISOString() : undefined,
@@ -224,9 +220,9 @@ export function AdvertisementsMutateDrawer({
   const updateMutation = useMutation({
     mutationFn: (data: AdvertisementForm) => advertisementsService.updateAdvertisement(currentRow!.id, {
       title: data.title,
-      description: data.description || undefined,
+      description: data.description,
       status: Number(data.status),
-      store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : undefined,
+      store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : null,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
       start_date: data.start_date ? new Date(data.start_date).toISOString() : undefined,
       end_date: data.end_date ? new Date(data.end_date).toISOString() : undefined,
@@ -281,12 +277,13 @@ export function AdvertisementsMutateDrawer({
             onSubmit={form.handleSubmit(onSubmit)}
             className='flex-1 space-y-6 overflow-y-auto px-4'
           >
+            {/* Basic Information */}
             <FormField
               control={form.control}
               name='title'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input {...field} placeholder='Enter advertisement title' />
                   </FormControl>
@@ -299,7 +296,7 @@ export function AdvertisementsMutateDrawer({
               name='description'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Description <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <div className="mt-2">
                       <MDEditor
@@ -321,21 +318,21 @@ export function AdvertisementsMutateDrawer({
               name='status'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status</FormLabel>
+                  <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
-                    <SearchableSelect
-                      value={field.value}
+                    <SelectDropdown
+                      defaultValue={field.value}
                       onValueChange={field.onChange}
                       placeholder='Select status'
-                      searchPlaceholder='Search status...'
-                      emptyMessage='No status found.'
-                      options={statuses}
+                      items={statuses}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Store Association */}
             <FormField
               control={form.control}
               name='store_id'
@@ -343,25 +340,30 @@ export function AdvertisementsMutateDrawer({
                 <FormItem>
                   <FormLabel>Store</FormLabel>
                   <FormControl>
-                    <SearchableSelect
-                      value={field.value}
+                    <InfiniteSearchableSelect
+                      value={field.value || undefined}
                       onValueChange={field.onChange}
                       placeholder='Select store'
                       searchPlaceholder='Search stores...'
-                      emptyMessage='No stores found.'
+                      emptyMessage={isLoading ? 'Loading stores...' : 'No stores found.'}
                       options={storeOptions}
+                      hasNextPage={hasNextPage}
+                      isFetchingNextPage={isFetchingNextPage}
+                      onLoadMore={() => fetchNextPage()}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Scheduling */}
             <FormField
               control={form.control}
               name='start_date'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Start Date</FormLabel>
+                  <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input
                       {...field}
@@ -378,7 +380,7 @@ export function AdvertisementsMutateDrawer({
               name='end_date'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>End Date</FormLabel>
+                  <FormLabel>End Date <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input
                       {...field}
@@ -395,27 +397,27 @@ export function AdvertisementsMutateDrawer({
               name='frequency_cap_minutes'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Frequency Cap (minutes)</FormLabel>
+                  <FormLabel>Frequency Cap (minutes) <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
-                    <SearchableSelect
-                      value={field.value || ''}
+                    <SelectDropdown
+                      defaultValue={field.value || ''}
                       onValueChange={field.onChange}
                       placeholder='Select frequency cap'
-                      searchPlaceholder='Search frequency...'
-                      emptyMessage='No frequency found.'
-                      options={frequencyOptions}
+                      items={frequencyOptions}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Media */}
             <FormField
               control={form.control}
               name='media_url'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Media Files</FormLabel>
+                  <FormLabel>Media Files <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <MultiMediaUploader
                       value={field.value || []}

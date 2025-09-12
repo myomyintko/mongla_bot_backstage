@@ -11,7 +11,8 @@ import {
 
 type SelectDropdownProps = {
   onValueChange?: (value: string) => void
-  defaultValue: string | undefined
+  defaultValue?: string | undefined
+  value?: string | undefined
   placeholder?: string
   isPending?: boolean
   items: { label: string; value: string }[] | undefined
@@ -22,6 +23,7 @@ type SelectDropdownProps = {
 
 export function SelectDropdown({
   defaultValue,
+  value,
   onValueChange,
   isPending,
   items,
@@ -30,11 +32,18 @@ export function SelectDropdown({
   className = '',
   isControlled = false,
 }: SelectDropdownProps) {
-  const defaultState = isControlled
-    ? { value: defaultValue, onValueChange }
-    : { defaultValue, onValueChange }
+  // Filter out empty string values and handle the default value
+  const validItems = items?.filter(({ value }) => value !== '') || []
+  const currentValue = isControlled ? value : defaultValue
+  const validValue = currentValue !== undefined && currentValue !== null && currentValue !== '' ? currentValue : undefined
+  
+  
+  const selectProps = isControlled
+    ? { value: validValue, onValueChange }
+    : { defaultValue: validValue, onValueChange }
+    
   return (
-    <Select {...defaultState}>
+    <Select {...selectProps}>
       <FormControl>
         <SelectTrigger disabled={disabled} className={cn(className)}>
           <SelectValue placeholder={placeholder ?? 'Select'} />
@@ -50,7 +59,7 @@ export function SelectDropdown({
             </div>
           </SelectItem>
         ) : (
-          items?.map(({ label, value }) => (
+          validItems.map(({ label, value }) => (
             <SelectItem key={value} value={value}>
               {label}
             </SelectItem>

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\MenuButton;
@@ -12,7 +14,69 @@ class MenuButtonSeeder extends Seeder
      */
     public function run(): void
     {
-        $menus = [
+        $this->command->info('🌱 Seeding menu buttons...');
+
+        // Only clear if we're doing a fresh seed (not in production)
+        if (app()->environment('local', 'testing')) {
+            MenuButton::truncate();
+        }
+
+        $menus = $this->getMenuData();
+        $createdMenus = [];
+
+        // Create main menu buttons using updateOrCreate to avoid conflicts
+        foreach ($menus as $menu) {
+            $menuName = $menu['emoji'] . ' ' . $menu['label'];
+            
+            $parentMenu = MenuButton::updateOrCreate(
+                ['name' => $menuName],
+                [
+                    'button_type' => 'store',
+                    'sort' => $menu['sort'],
+                    'status' => 1,
+                    'enable_template' => true,
+                    'template_content' => 'Welcome to ' . $menu['label'] . ' services! Please select an option below.',
+                ]
+            );
+
+            $createdMenus[$menuName] = $parentMenu;
+
+            // Create sub-menu buttons
+            if (!empty($menu['sub'])) {
+                foreach ($menu['sub'] as $index => $subMenu) {
+                    $subMenuName = $subMenu[0] . ' ' . $subMenu[1];
+                    
+                    MenuButton::updateOrCreate(
+                        [
+                            'name' => $subMenuName,
+                            'parent_id' => $parentMenu->id,
+                        ],
+                        [
+                            'button_type' => 'store',
+                            'sort' => $index + 1,
+                            'status' => 1,
+                            'enable_template' => false,
+                        ]
+                    );
+                }
+            }
+        }
+
+        $totalMenus = count($createdMenus);
+        $totalSubMenus = MenuButton::whereNotNull('parent_id')->count();
+
+        $this->command->info("✅ Menu buttons seeded successfully!");
+        $this->command->info("   📊 Created/Updated {$totalMenus} main categories and {$totalSubMenus} sub-categories");
+    }
+
+    /**
+     * Get the menu data structure.
+     *
+     * @return array
+     */
+    private function getMenuData(): array
+    {
+        return [
             [
                 'emoji' => '🍽️',
                 'label' => 'Food',
@@ -110,31 +174,5 @@ class MenuButtonSeeder extends Seeder
                 ],
             ],
         ];
-
-        // Create main menu buttons
-        foreach ($menus as $menu) {
-            $parentMenu = MenuButton::create([
-                'name' => $menu['emoji'] . ' ' . $menu['label'],
-                'button_type' => 'store',
-                'sort' => $menu['sort'],
-                'status' => 1,
-                'enable_template' => true,
-                'template_content' => 'Welcome to ' . $menu['label'] . ' services! Please select an option below.',
-            ]);
-
-            // Create sub-menu buttons
-            foreach ($menu['sub'] as $index => $subMenu) {
-                MenuButton::create([
-                    'parent_id' => $parentMenu->id,
-                    'name' => $subMenu[0] . ' ' . $subMenu[1],
-                    'button_type' => 'store',
-                    'sort' => $index + 1,
-                    'status' => 1,
-                    'enable_template' => false,
-                ]);
-            }
-        }
-
-        $this->command->info('Menu buttons seeded successfully with ' . count($menus) . ' main categories!');
     }
 }

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { toast } from 'sonner'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -29,8 +30,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token')
-      window.location.href = '/sign-in'
+      // Check if user was suspended
+      if (error.response?.data?.suspended) {
+        // Clear all auth data
+        localStorage.removeItem('access_token')
+        // Show suspended message and redirect
+        toast.error('Your account has been suspended. You have been logged out.')
+      } else {
+        // Regular 401 - just clear token and redirect
+        localStorage.removeItem('access_token')
+      }
     }
     return Promise.reject(error)
   }

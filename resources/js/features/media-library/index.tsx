@@ -3,13 +3,16 @@ import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
 import { ProfileDropdown } from "@/components/profile-dropdown";
 import { ThemeSwitch } from "@/components/theme-switch";
+import { CanView } from "@/components/permission/permission-gate";
 import { MediaLibraryProvider } from "./components/media-library-provider";
 import { MediaLibraryTable } from "./components/media-library-table";
 import { Search } from "@/components/search";
+import { ForbiddenError } from "../errors/forbidden";
 
 export function MediaLibrary() {
   return (
-    <MediaLibraryProvider>
+    <CanView resource="media" fallback={<ForbiddenError/>}>
+      <MediaLibraryProvider>
         <Header fixed>  
         <Search />
         <div className='ms-auto flex items-center space-x-4'>
@@ -32,6 +35,7 @@ export function MediaLibrary() {
         <MediaLibraryTable />
         </div>
       </Main>
-    </MediaLibraryProvider>
+      </MediaLibraryProvider>
+    </CanView>
   )
 }

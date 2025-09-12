@@ -1,6 +1,6 @@
 import { MultiMediaUploader } from '@/components/multi-media-uploader'
+import { InfiniteSearchableSelect } from '@/components/infinite-searchable-select'
 import { SelectDropdown } from '@/components/select-dropdown'
-import { SearchableSelect } from '@/components/searchable-select'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -21,19 +21,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { storesService } from '@/services/stores-service'
-import { mediaLibraryService, type MediaLibraryItem } from '@/services/media-library-service'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
-import MDEditor from '@uiw/react-md-editor'
+import { useTheme } from '@/context/theme-provider'
+import { type MediaLibraryItem } from '@/services/media-library-service'
 import { menuButtonsService } from '@/services/menu-buttons-service'
+import { storesService } from '@/services/stores-service'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import MDEditor from '@uiw/react-md-editor'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { useTheme } from '@/context/theme-provider'
-import { statuses, timeOptions } from '../data/data'
+import { statuses } from '../data/data'
 import { Store } from '../data/schema'
+import TimePicker from '@/components/ui/time-picker'
 
 type StoresMutateDrawerProps = {
   open: boolean
@@ -41,40 +42,18 @@ type StoresMutateDrawerProps = {
   currentRow?: Store
 }
 
-const mediaLibraryItemSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  original_name: z.string(),
-  file_path: z.string(),
-  file_size: z.number(),
-  mime_type: z.string(),
-  file_type: z.enum(['image', 'video', 'document', 'other']),
-  width: z.number().nullable(),
-  height: z.number().nullable(),
-  duration: z.number().nullable(),
-  alt_text: z.string().nullable(),
-  description: z.string().nullable(),
-  tags: z.array(z.string()),
-  is_public: z.boolean(),
-  created_at: z.string(),
-  updated_at: z.string(),
-  url: z.string().optional(),
-  formatted_size: z.string().optional(),
-  formatted_duration: z.string().optional(),
-})
-
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   description: z.string().nullable().optional(),
   status: z.string().min(1, 'Please select a status.'),
-  address: z.string().nullable().optional(),
-  open_hour: z.string().nullable().optional(),
-  close_hour: z.string().nullable().optional(),
+  address: z.string().min(1, 'Address is required.'),
+  open_hour: z.string().min(1, 'Opening hour is required.'),
+  close_hour: z.string().min(1, 'Closing hour is required.'),
   recommand: z.boolean().optional(),
-  media_url: z.array(z.string()).optional(),
+  media_url: z.array(z.string()).min(1, 'At least one media file is required.'),
   menu_urls: z.array(z.string()).optional(),
   sub_btns: z.array(z.string()).nullable().optional(),
-  menu_button_id: z.string().optional(),
+  menu_button_id: z.string().min(1, 'Please select a category.'),
 })
 type StoreForm = z.infer<typeof formSchema>
 
@@ -89,24 +68,37 @@ export function StoresMutateDrawer({
   const [deletedFiles, setDeletedFiles] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
 
-  // Fetch menu buttons for dropdown (only store type)
-  const { data: menuButtonsData } = useQuery({
-    queryKey: ['menu-buttons', 'store'],
-    queryFn: () => menuButtonsService.getMenuButtons({ 
-      button_type: 'store',
-      per_page: 1000 // Fetch all store-type menu buttons
-    }),
+  // Fetch menu buttons for dropdown (only store type) with infinite scroll
+  const {
+    data: menuButtonsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteQuery({
+    queryKey: ['menu-buttons', 'store', 'category-selection'],
+    queryFn: ({ pageParam = 1 }) => 
+      menuButtonsService.getMenuButtons({ 
+        button_type: 'store',
+        page: pageParam,
+        per_page: 20
+      }),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.current_page < lastPage.last_page) {
+        return lastPage.current_page + 1
+      }
+      return undefined
+    },
+    initialPageParam: 1,
     enabled: open, // Only fetch when drawer is open
   })
 
-  const menuButtons = menuButtonsData?.data || []
-  const menuButtonOptions = [
-    { label: 'No Category', value: 'none' },
-    ...menuButtons.map((button) => ({
-      label: button.name,
-      value: String(button.id),
-    })),
-  ]
+  // Flatten all pages
+  const allMenuButtons = menuButtonsData?.pages.flatMap(page => page.data) || []
+  const menuButtonOptions = allMenuButtons.map((button) => ({
+    label: button.name,
+    value: String(button.id),
+  }))
 
   // Handle files that were deleted from the UI
   const handleFilesDeleted = (files: (string | MediaLibraryItem)[]) => {
@@ -162,14 +154,14 @@ export function StoresMutateDrawer({
       name: '',
       description: null,
       status: '1',
-      address: null,
-      open_hour: null,
-      close_hour: null,
+      address: '',
+      open_hour: '09:00',
+      close_hour: '21:00',
       recommand: false,
       media_url: [],
       menu_urls: [],
       sub_btns: null,
-      menu_button_id: 'none',
+      menu_button_id: '',
     },
   })
 
@@ -180,9 +172,9 @@ export function StoresMutateDrawer({
         name: currentRow.name,
         description: currentRow.description,
         status: String(currentRow.status),
-        address: currentRow.address,
-        open_hour: currentRow.open_hour,
-        close_hour: currentRow.close_hour,
+        address: currentRow.address || '',
+        open_hour: currentRow.open_hour || '',
+        close_hour: currentRow.close_hour || '',
         recommand: currentRow.recommand,
         media_url: currentRow.media_url && currentRow.media_url.trim() ? [
           currentRow.media_url.startsWith('http') 
@@ -195,19 +187,19 @@ export function StoresMutateDrawer({
             : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${url}`
         ) : [],
         sub_btns: currentRow.sub_btns,
-        menu_button_id: currentRow.menu_button_id ? String(currentRow.menu_button_id) : 'none',
+        menu_button_id: currentRow.menu_button_id ? String(currentRow.menu_button_id) : '',
       } : {
         name: '',
         description: null,
         status: '1',
-        address: null,
-        open_hour: null,
-        close_hour: null,
+        address: '',
+        open_hour: '09:00',
+        close_hour: '21:00',
         recommand: false,
         media_url: [],
         menu_urls: [],
         sub_btns: null,
-        menu_button_id: 'none',
+        menu_button_id: '',
       }
       
       form.reset(defaultValues)
@@ -221,14 +213,14 @@ export function StoresMutateDrawer({
       name: data.name,
       description: data.description || undefined,
       status: Number(data.status),
-      address: data.address || undefined,
-      open_hour: data.open_hour || undefined,
-      close_hour: data.close_hour || undefined,
+      address: data.address,
+      open_hour: data.open_hour,
+      close_hour: data.close_hour,
       recommand: data.recommand || false,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
       menu_urls: data.menu_urls || undefined,
       sub_btns: data.sub_btns || undefined,
-      menu_button_id: data.menu_button_id && data.menu_button_id !== 'none' ? Number(data.menu_button_id) : undefined,
+      menu_button_id: data.menu_button_id ? Number(data.menu_button_id) : null,
     }),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
@@ -248,14 +240,14 @@ export function StoresMutateDrawer({
       name: data.name,
       description: data.description || undefined,
       status: Number(data.status),
-      address: data.address || undefined,
-      open_hour: data.open_hour || undefined,
-      close_hour: data.close_hour || undefined,
+      address: data.address,
+      open_hour: data.open_hour,
+      close_hour: data.close_hour,
       recommand: data.recommand || false,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
       menu_urls: data.menu_urls || null,
       sub_btns: data.sub_btns || undefined,
-      menu_button_id: data.menu_button_id && data.menu_button_id !== 'none' ? Number(data.menu_button_id) : undefined,
+      menu_button_id: data.menu_button_id ? Number(data.menu_button_id) : null,
     }),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
@@ -306,12 +298,13 @@ export function StoresMutateDrawer({
             onSubmit={form.handleSubmit(onSubmit)}
             className='flex-1 space-y-6 overflow-y-auto px-4'
           >
+            {/* Basic Information */}
             <FormField
               control={form.control}
               name='name'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input {...field} placeholder='Enter store name' />
                   </FormControl>
@@ -346,7 +339,7 @@ export function StoresMutateDrawer({
               name='status'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status</FormLabel>
+                  <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
                   <SelectDropdown
                     defaultValue={field.value}
                     onValueChange={field.onChange}
@@ -357,12 +350,13 @@ export function StoresMutateDrawer({
                 </FormItem>
               )}
             />
+            {/* Location & Hours */}
             <FormField
               control={form.control}
               name='address'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
+                  <FormLabel>Address <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input 
                       {...field} 
@@ -379,13 +373,14 @@ export function StoresMutateDrawer({
               name='open_hour'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Opening Hour</FormLabel>
-                  <SelectDropdown
-                    defaultValue={field.value || undefined}
-                    onValueChange={field.onChange}
-                    placeholder='Select opening hour'
-                    items={timeOptions}
-                  />
+                  <FormLabel>Opening Hour <span className="text-red-500">*</span></FormLabel>
+                  <FormControl>
+                    <TimePicker
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder='Select opening hour'
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -395,13 +390,38 @@ export function StoresMutateDrawer({
               name='close_hour'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Closing Hour</FormLabel>
-                  <SelectDropdown
-                    defaultValue={field.value || undefined}
-                    onValueChange={field.onChange}
-                    placeholder='Select closing hour'
-                    items={timeOptions}
-                  />
+                  <FormLabel>Closing Hour <span className="text-red-500">*</span></FormLabel>
+                  <FormControl>
+                    <TimePicker
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder='Select closing hour'
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Category & Settings */}
+            <FormField
+              control={form.control}
+              name='menu_button_id'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category <span className="text-red-500">*</span></FormLabel>
+                  <FormControl>
+                    <InfiniteSearchableSelect
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder='Select category'
+                      searchPlaceholder='Search categories...'
+                      emptyMessage={isLoading ? 'Loading categories...' : 'No categories found.'}
+                      options={menuButtonOptions}
+                      hasNextPage={hasNextPage}
+                      isFetchingNextPage={isFetchingNextPage}
+                      onLoadMore={() => fetchNextPage()}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -423,32 +443,13 @@ export function StoresMutateDrawer({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name='menu_button_id'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <FormControl>
-                    <SearchableSelect
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder='Select category'
-                      searchPlaceholder='Search categories...'
-                      emptyMessage='No categories found.'
-                      options={menuButtonOptions}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Media */}
             <FormField
               control={form.control}
               name='media_url'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Media Files</FormLabel>
+                  <FormLabel>Media Files <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <MultiMediaUploader
                       value={field.value || []}

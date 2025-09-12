@@ -1,4 +1,5 @@
 import { MultiMediaUploader } from '@/components/multi-media-uploader'
+import { InfiniteSearchableSelect } from '@/components/infinite-searchable-select'
 import { SelectDropdown } from '@/components/select-dropdown'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,16 +21,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { useTheme } from '@/context/theme-provider'
+import { type MediaLibraryItem } from '@/services/media-library-service'
 import { menuButtonsService } from '@/services/menu-buttons-service'
-import { mediaLibraryService, type MediaLibraryItem } from '@/services/media-library-service'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import MDEditor from '@uiw/react-md-editor'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { useTheme } from '@/context/theme-provider'
 import { buttonTypes, statuses } from '../data/data'
 import { type MenuButton } from '../data/schema'
 
@@ -38,28 +39,6 @@ type MenuButtonsMutateDrawerProps = {
   onOpenChange: (open: boolean) => void
   currentRow?: MenuButton
 }
-
-const mediaLibraryItemSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  original_name: z.string(),
-  file_path: z.string(),
-  file_size: z.number(),
-  mime_type: z.string(),
-  file_type: z.enum(['image', 'video', 'document', 'other']),
-  width: z.number().nullable(),
-  height: z.number().nullable(),
-  duration: z.number().nullable(),
-  alt_text: z.string().nullable(),
-  description: z.string().nullable(),
-  tags: z.array(z.string()),
-  is_public: z.boolean(),
-  created_at: z.string(),
-  updated_at: z.string(),
-  url: z.string().optional(),
-  formatted_size: z.string().optional(),
-  formatted_duration: z.string().nullable().optional(),
-}).passthrough() // Allow additional fields
 
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -84,6 +63,38 @@ export function MenuButtonsMutateDrawer({
   const queryClient = useQueryClient()
   const [deletedFiles, setDeletedFiles] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
+
+  // Fetch menu buttons for parent selection with infinite scroll
+  const {
+    data: menuButtonsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteQuery({
+    queryKey: ['menu-buttons', 'parent-selection'],
+    queryFn: ({ pageParam = 1 }) => 
+      menuButtonsService.getMenuButtons({ page: pageParam, per_page: 20 }),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.current_page < lastPage.last_page) {
+        return lastPage.current_page + 1
+      }
+      return undefined
+    },
+    initialPageParam: 1,
+  })
+
+  // Flatten all pages and filter for root buttons only
+  const allMenuButtons = menuButtonsData?.pages.flatMap(page => page.data) || []
+  const rootMenuButtons = allMenuButtons.filter(button => !button.parent_id)
+
+  const parentOptions = [
+    { label: 'No Parent (Root)', value: 'none' },
+    ...rootMenuButtons.map(button => ({
+      label: button.name || `Menu Button ${button.id}`,
+      value: String(button.id),
+    }))
+  ]
 
   // Handle files that were deleted from the UI
   const handleFilesDeleted = (files: (string | MediaLibraryItem)[]) => {
@@ -306,12 +317,13 @@ export function MenuButtonsMutateDrawer({
             onSubmit={form.handleSubmit(onSubmit)}
             className='flex-1 space-y-6 overflow-y-auto px-4'
           >
+            {/* Basic Information */}
             <FormField
               control={form.control}
               name='name'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Name <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input {...field} placeholder='Enter menu button name' />
                   </FormControl>
@@ -324,7 +336,7 @@ export function MenuButtonsMutateDrawer({
               name='button_type'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Button Type</FormLabel>
+                  <FormLabel>Button Type <span className="text-red-500">*</span></FormLabel>
                   <SelectDropdown
                     defaultValue={field.value}
                     onValueChange={field.onChange}
@@ -340,13 +352,40 @@ export function MenuButtonsMutateDrawer({
               name='status'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status</FormLabel>
+                  <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
                   <SelectDropdown
                     defaultValue={field.value}
                     onValueChange={field.onChange}
                     placeholder='Select status'
                     items={statuses}
                   />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Hierarchy & Organization */}
+            <FormField
+              control={form.control}
+              name='parent_id'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Parent Menu Button</FormLabel>
+                  <FormControl>
+                    <InfiniteSearchableSelect
+                      value={field.value ? String(field.value) : 'none'}
+                      onValueChange={(value: string) => {
+                        field.onChange(value === 'none' ? null : Number(value))
+                      }}
+                      placeholder='Select parent menu button'
+                      searchPlaceholder='Search parent menu buttons...'
+                      options={parentOptions}
+                      hasNextPage={hasNextPage}
+                      isFetchingNextPage={isFetchingNextPage}
+                      onLoadMore={() => fetchNextPage()}
+                      emptyMessage={isLoading ? 'Loading menu buttons...' : 'No parent menu buttons found.'}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -370,6 +409,8 @@ export function MenuButtonsMutateDrawer({
                 </FormItem>
               )}
             />
+
+            {/* Media */}
             <FormField
               control={form.control}
               name='media_url'
@@ -406,6 +447,8 @@ export function MenuButtonsMutateDrawer({
                 </FormItem>
               )}
             />
+
+            {/* Advanced Features */}
             <FormField
               control={form.control}
               name='enable_template'

@@ -14,6 +14,7 @@ import { AuthProvider } from './context/auth-provider'
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
+import { PermissionProvider } from './context/permission-context'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
 import './styles/index.css'
@@ -92,13 +93,15 @@ if (!rootElement.innerHTML) {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <ThemeProvider>
-            <FontProvider>
-              <DirectionProvider>
-                <RouterProvider router={router} />
-              </DirectionProvider>
-            </FontProvider>
-          </ThemeProvider>
+          <PermissionProvider>
+            <ThemeProvider>
+              <FontProvider>
+                <DirectionProvider>
+                  <RouterProvider router={router} />
+                </DirectionProvider>
+              </FontProvider>
+            </ThemeProvider>
+          </PermissionProvider>
         </AuthProvider>
       </QueryClientProvider>
     </StrictMode>

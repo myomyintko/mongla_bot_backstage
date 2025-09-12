@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
-import { showSubmittedData } from '@/lib/show-submitted-data'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { type User } from '../data/schema'
+import { userService } from '@/services/user-service'
 
 type UserDeleteDialogProps = {
   open: boolean
@@ -21,12 +23,24 @@ export function UsersDeleteDialog({
   currentRow,
 }: UserDeleteDialogProps) {
   const [value, setValue] = useState('')
+  const queryClient = useQueryClient()
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => userService.deleteUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User deleted successfully!')
+      onOpenChange(false)
+      setValue('')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete user')
+    },
+  })
 
   const handleDelete = () => {
     if (value.trim() !== currentRow.username) return
-
-    onOpenChange(false)
-    showSubmittedData(currentRow, 'The following user has been deleted:')
+    deleteMutation.mutate(currentRow.id)
   }
 
   return (
@@ -34,7 +48,7 @@ export function UsersDeleteDialog({
       open={open}
       onOpenChange={onOpenChange}
       handleConfirm={handleDelete}
-      disabled={value.trim() !== currentRow.username}
+      disabled={value.trim() !== currentRow.username || deleteMutation.isPending}
       title={
         <span className='text-destructive'>
           <AlertTriangle
@@ -74,7 +88,7 @@ export function UsersDeleteDialog({
           </Alert>
         </div>
       }
-      confirmText='Delete'
+      confirmText={deleteMutation.isPending ? 'Deleting...' : 'Delete'}
       destructive
     />
   )

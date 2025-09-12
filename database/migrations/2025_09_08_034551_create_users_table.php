@@ -17,6 +17,8 @@ return new class extends Migration {
             $table->string('username')->unique();
             $table->string('avatar')->nullable();
             $table->timestamp('email_verified_at')->nullable();
+            $table->tinyInteger('status')->default(1); // 1=active, 2=inactive, 3=invited, 4=suspended
+            $table->boolean('password_setup_required')->default(false);
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();

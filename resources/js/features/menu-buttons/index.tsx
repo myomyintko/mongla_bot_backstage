@@ -6,11 +6,13 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { CanView } from '@/components/permission/permission-gate'
 import { menuButtonsService } from '@/services/menu-buttons-service'
 import { MenuButtonsDialogs } from './components/menu-buttons-dialogs'
 import { MenuButtonsProvider } from './components/menu-buttons-provider'
 import { MenuButtonsPrimaryButtons } from './components/menu-buttons-primary-buttons'
 import { MenuButtonsTable } from './components/menu-buttons-table'
+import { ForbiddenError } from '../errors/forbidden'
 
 const route = getRouteApi('/_authenticated/menu-buttons/')
 
@@ -50,7 +52,8 @@ export function MenuButtons() {
   }
 
   return (
-    <MenuButtonsProvider>
+      <CanView resource="menu-buttons" fallback={ <ForbiddenError/> }>
+      <MenuButtonsProvider>
       <Header fixed>  
         <Search />
         <div className='ms-auto flex items-center space-x-4'>
@@ -84,6 +87,7 @@ export function MenuButtons() {
       </Main>
 
       <MenuButtonsDialogs />
-    </MenuButtonsProvider>
+      </MenuButtonsProvider>
+    </CanView>
   )
 }

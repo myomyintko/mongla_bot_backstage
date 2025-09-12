@@ -25,7 +25,7 @@ import { type Store } from '../data/schema'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 import { storesColumns as columns } from './stores-columns'
 import { menuButtonsService } from '@/services/menu-buttons-service'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 
 const route = getRouteApi('/_authenticated/stores/')
 
@@ -43,17 +43,32 @@ export function StoresTable({ data, paginationMeta }: DataTableProps) {
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [categorySearchValue, setCategorySearchValue] = useState('')
 
-  // Fetch menu buttons for category filter
-  const { data: menuButtonsData } = useQuery({
-    queryKey: ['menu-buttons', 'store', 'all'],
-    queryFn: () => menuButtonsService.getMenuButtons({ 
+  // Fetch menu buttons for category filter with infinite scroll
+  const {
+    data: menuButtonsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['menu-buttons', 'store', 'infinite', categorySearchValue],
+    queryFn: ({ pageParam = 1 }) => menuButtonsService.getMenuButtons({ 
       button_type: 'store',
-      per_page: 1000 // Fetch all store-type menu buttons
+      per_page: 20,
+      page: pageParam,
+      search: categorySearchValue || undefined,
     }),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.current_page < lastPage.last_page) {
+        return lastPage.current_page + 1
+      }
+      return undefined
+    },
+    initialPageParam: 1,
   })
 
-  const menuButtons = menuButtonsData?.data || []
+  const menuButtons = menuButtonsData?.pages.flatMap(page => page.data) || []
   const menuButtonOptions = [
     { label: 'All Categories', value: 'all' },
     { label: 'No Category', value: 'none' },
@@ -140,6 +155,12 @@ export function StoresTable({ data, paginationMeta }: DataTableProps) {
             columnId: 'menu_button',
             title: 'Category',
             options: menuButtonOptions,
+            infinite: true,
+            hasNextPage,
+            isFetchingNextPage,
+            onLoadMore: () => fetchNextPage(),
+            searchValue: categorySearchValue,
+            onSearchChange: setCategorySearchValue,
           },
         ]}
       />

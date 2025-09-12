@@ -1,5 +1,6 @@
 import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -27,6 +28,7 @@ const formSchema = z.object({
     .string()
     .min(1, 'Please enter your password')
     .min(7, 'Password must be at least 7 characters long'),
+  rememberMe: z.boolean().optional(),
 })
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
@@ -47,6 +49,7 @@ export function UserAuthForm({
     defaultValues: {
       email: '',
       password: '',
+      rememberMe: false,
     },
   })
 
@@ -54,7 +57,29 @@ export function UserAuthForm({
     setIsLoading(true)
 
     try {
-      await auth.login(data.email, data.password)
+      const result = await auth.login(data.email, data.password, data.rememberMe)
+      
+      if (result.requiresPasswordSetup) {
+        // Navigate to setup password page
+        navigate({ 
+          to: '/setup-password', 
+          search: { 
+            redirect: redirectTo || '/'
+          }
+        })
+        return
+      }
+      
+      if (result.requiresTwoFactor) {
+        // Navigate to OTP route for 2FA verification
+        navigate({ 
+          to: '/otp', 
+          search: { 
+            redirect: redirectTo || '/'
+          }
+        })
+        return
+      }
       
       // Redirect to the stored location or default to dashboard
       const targetPath = redirectTo || '/'
@@ -73,7 +98,7 @@ export function UserAuthForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn('grid gap-3', className)}
+        className={cn('space-y-4', className)}
         {...props}
       >
         <FormField
@@ -83,27 +108,56 @@ export function UserAuthForm({
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder='name@example.com' {...field} />
+                <Input 
+                  placeholder='name@example.com' 
+                  type='email'
+                  autoComplete='email'
+                  {...field} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+        
         <FormField
           control={form.control}
           name='password'
           render={({ field }) => (
-            <FormItem className='relative'>
+            <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <PasswordInput placeholder='********' {...field} />
+                <PasswordInput 
+                  placeholder='Enter your password' 
+                  autoComplete='current-password'
+                  {...field} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button className='mt-2' disabled={isLoading}>
-          {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
+        
+        <FormField
+          control={form.control}
+          name='rememberMe'
+          render={({ field }) => (
+            <FormItem className='flex flex-row items-center space-x-2 space-y-0'>
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className='text-sm font-normal cursor-pointer'>
+                Remember me
+              </FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <Button type='submit' className='w-full' disabled={isLoading}>
+          {isLoading ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <LogIn className='mr-2 h-4 w-4' />}
           Sign in
         </Button>
       </form>

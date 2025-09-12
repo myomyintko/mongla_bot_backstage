@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Store;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class StoreController extends Controller
 {
@@ -167,5 +167,128 @@ class StoreController extends Controller
             'message' => "Successfully deleted {$deleted} stores",
             'deleted_count' => $deleted
         ]);
+    }
+
+    /**
+     * Bulk import stores from Excel file
+     */
+    public function bulkImport(Request $request): JsonResponse
+    {
+        $validator = \Validator::make($request->all(), [
+            'file' => 'required|file|mimes:xlsx|max:10240', // 10MB max
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $file = $request->file('file');
+            $importedCount = 0;
+            $errors = [];
+
+            // Read Excel file
+            $reader = IOFactory::createReader('Xlsx');
+            $spreadsheet = $reader->load($file->getPathname());
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray();
+
+            // Skip header row
+            $dataRows = array_slice($rows, 1);
+
+            foreach ($dataRows as $index => $row) {
+                try {
+                    // Map Excel columns to store data
+                    $storeData = [
+                        'name' => $row[0] ?? '',
+                        'description' => $row[1] ?? null,
+                        'media_url' => $row[2] ?? null, // This will be handled as filename
+                        'address' => $row[3] ?? '',
+                        'open_hour' => $row[4] ?? '09:00',
+                        'close_hour' => $row[5] ?? '21:00',
+                        'status' => $this->mapStatus($row[6] ?? 'Active'),
+                        'recommand' => $this->mapRecommended($row[7] ?? 'No'),
+                        'menu_button_id' => $row[8] ? (int)$row[8] : null,
+                    ];
+
+                    // Validate required fields
+                    if (empty($storeData['name'])) {
+                        throw new \Exception('Name is required');
+                    }
+
+                    // Handle media file upload if filename is provided
+                    if (!empty($storeData['media_url'])) {
+                        $mediaPath = $this->handleMediaFile($storeData['media_url']);
+                        $storeData['media_url'] = $mediaPath;
+                    }
+
+                    // Create store
+                    Store::create($storeData);
+                    $importedCount++;
+
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'row' => $index + 2, // +2 because we skip header and arrays are 0-indexed
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully imported {$importedCount} stores",
+                'imported_count' => $importedCount,
+                'errors' => $errors,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Import failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Map status string to integer
+     */
+    private function mapStatus(string $status): int
+    {
+        return match (strtolower(trim($status))) {
+            'active' => 1,
+            'inactive' => 0,
+            default => 1,
+        };
+    }
+
+    /**
+     * Map recommended string to boolean
+     */
+    private function mapRecommended(string $recommended): bool
+    {
+        return match (strtolower(trim($recommended))) {
+            'yes', 'true', '1' => true,
+            default => false,
+        };
+    }
+
+    /**
+     * Handle media file upload
+     */
+    private function handleMediaFile(string $filename): ?string
+    {
+        // For now, we'll just return the filename as the path
+        // In a real implementation, you might want to:
+        // 1. Check if the file exists in a specific directory
+        // 2. Upload the file to the media library
+        // 3. Return the proper file path
+        
+        // This is a placeholder implementation
+        // You should implement proper file handling based on your requirements
+        return $filename;
     }
 }

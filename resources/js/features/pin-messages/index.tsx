@@ -6,11 +6,13 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { CanView } from '@/components/permission/permission-gate'
 import { PinMessagesDialogs } from './components/pin-messages-dialogs'
 import { PinMessagesProvider } from './components/pin-messages-provider'
 import { PinMessagesPrimaryButtons } from './components/pin-messages-primary-buttons'
 import { PinMessagesTable } from './components/pin-messages-table'
   import { pinMessagesService } from '../../services/pin-messages-service'
+import { ForbiddenError } from '../errors/forbidden'
 
 const route = getRouteApi('/_authenticated/pin-messages/')
 
@@ -46,7 +48,8 @@ export function PinMessages() {
   }
 
   return (
-    <PinMessagesProvider>
+    <CanView resource="pin-messages" fallback={<ForbiddenError/>}>
+      <PinMessagesProvider>
       <Header fixed>  
         <Search />
         <div className='ms-auto flex items-center space-x-4'>
@@ -80,6 +83,7 @@ export function PinMessages() {
       </Main>
 
       <PinMessagesDialogs />
-    </PinMessagesProvider>
+      </PinMessagesProvider>
+    </CanView>
   )
 }

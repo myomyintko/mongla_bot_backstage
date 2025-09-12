@@ -87,4 +87,17 @@ export const storesService = {
     const response = await api.post('/stores/bulk-delete', { ids })
     return response.data
   },
+
+  // Bulk import stores from Excel file
+  bulkImport: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await api.post('/stores/bulk-import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
 }

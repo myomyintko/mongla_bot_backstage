@@ -6,10 +6,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { CanEdit, CanDelete } from '@/components/permission/permission-gate'
 import { menuButtonsSchema } from '../data/schema'
 import { useMenuButtons } from './menu-buttons-provider'
 
@@ -36,28 +36,30 @@ export function DataTableRowActions<TData>({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align='end' className='w-[160px]'>
-        <DropdownMenuItem
-          onClick={() => {
-            setCurrentRow(task)
-            setOpen('update')
-          }}
-        >
-          Edit
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled>Make a copy</DropdownMenuItem>
-        <DropdownMenuItem disabled>Favorite</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => {
-            setCurrentRow(task)
-            setOpen('delete')
-          }}
-        >
-          Delete
-          <DropdownMenuShortcut>
-            <Trash2 size={16} />
-          </DropdownMenuShortcut>
-        </DropdownMenuItem>
+        <CanEdit resource="menu-buttons">
+          <DropdownMenuItem
+            onClick={() => {
+              setCurrentRow(task)
+              setOpen('update')
+            }}
+          >
+            Edit
+          </DropdownMenuItem>
+        </CanEdit>
+        
+        <CanDelete resource="menu-buttons">
+          <DropdownMenuItem
+            onClick={() => {
+              setCurrentRow(task)
+              setOpen('delete')
+            }}
+          >
+            Delete
+            <DropdownMenuShortcut>
+              <Trash2 size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </CanDelete>
       </DropdownMenuContent>
     </DropdownMenu>
   )

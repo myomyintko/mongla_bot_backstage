@@ -48,15 +48,91 @@ export const storesColumns: ColumnDef<Store>[] = [
     cell: ({ row }) => {
       const name = row.getValue('name') as string
       const address = row.original.address as string | null
+      const mediaUrl = row.original.media_url as string | null
       
       return (
-        <div className='flex flex-col space-y-1'>
-          <span className='font-medium text-sm'>
-            {name}
-          </span>
-          <span className='text-xs text-muted-foreground'>
-            {address || 'No address'}
-          </span>
+        <div className='flex items-center space-x-3'>
+          {/* Media Preview */}
+          <div className='flex-shrink-0'>
+            {mediaUrl ? (
+              <div className='relative w-10 h-10 rounded-lg overflow-hidden bg-muted group'>
+                {(() => {
+                  const fullUrl = mediaUrl.startsWith('http') 
+                    ? mediaUrl 
+                    : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${mediaUrl}`
+                  
+                  // Check if it's a video file
+                  const isVideo = /\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)(\?.*)?$/i.test(mediaUrl)
+                  
+                  if (isVideo) {
+                    return (
+                      <>
+                        <video
+                          src={fullUrl}
+                          className='w-full h-full object-cover'
+                          muted
+                          onError={(e) => {
+                            const target = e.target as HTMLVideoElement
+                            target.style.display = 'none'
+                            target.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                        {/* Video Play Icon Overlay */}
+                        <div className='absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
+                          <svg className='w-4 h-4 text-white' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' clipRule='evenodd' />
+                          </svg>
+                        </div>
+                        {/* Fallback for video error */}
+                        <div className='hidden absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground'>
+                          <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
+                          </svg>
+                        </div>
+                      </>
+                    )
+                  } else {
+                    return (
+                      <>
+                        <img
+                          src={fullUrl}
+                          alt={name}
+                          className='w-full h-full object-cover'
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            target.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                        {/* Fallback for image error */}
+                        <div className='hidden absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground'>
+                          <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
+                          </svg>
+                        </div>
+                      </>
+                    )
+                  }
+                })()}
+              </div>
+            ) : (
+              <div className='w-10 h-10 rounded-lg bg-muted flex items-center justify-center'>
+                <svg className='w-5 h-5 text-muted-foreground' fill='currentColor' viewBox='0 0 20 20'>
+                  <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
+                </svg>
+              </div>
+            )}
+          </div>
+          
+          {/* Name and Address */}
+          <div className='flex flex-col space-y-1 min-w-0 flex-1'>
+            <span className='font-medium text-sm truncate'>
+              {name}
+            </span>
+            <span className='text-xs text-muted-foreground truncate'>
+              {address || 'No address'}
+            </span>
+          </div>
         </div>
       )
     },
@@ -117,13 +193,28 @@ export const storesColumns: ColumnDef<Store>[] = [
       )
 
       if (!status) {
-        return null
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            Unknown
+          </Badge>
+        )
       }
 
       return (
-        <div className='flex w-[100px] items-center gap-2'>
-          <span>{status.label}</span>
-        </div>
+        <Badge 
+          variant={
+            status.value === '1' ? 'default' : 
+            status.value === '2' ? 'secondary' : 
+            'destructive'
+          }
+          className={
+            status.value === '1' ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200' :
+            status.value === '2' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200' :
+            'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200'
+          }
+        >
+          {status.label}
+        </Badge>
       )
     },
     filterFn: (row, id, value) => {
@@ -138,7 +229,14 @@ export const storesColumns: ColumnDef<Store>[] = [
     cell: ({ row }) => {
       const recommand = row.getValue('recommand') as boolean
       return (
-        <Badge variant={recommand ? 'default' : 'outline'}>
+        <Badge 
+          variant={recommand ? 'default' : 'outline'}
+          className={
+            recommand 
+              ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200' 
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400'
+          }
+        >
           {recommand ? 'Yes' : 'No'}
         </Badge>
       )
@@ -156,9 +254,18 @@ export const storesColumns: ColumnDef<Store>[] = [
     ),
     cell: ({ row }) => {
       const menuButton = row.original.menu_button
+      
+      if (!menuButton?.name) {
+        return (
+          <Badge variant="outline" className="text-muted-foreground bg-gray-50 dark:bg-gray-800">
+            No category
+          </Badge>
+        )
+      }
+      
       return (
-        <div className='max-w-[150px] truncate'>
-          {menuButton?.name || 'No category'}
+        <div className='flex items-center space-x-2 max-w-[150px]'>
+          <span className='text-sm font-medium truncate'>{menuButton.name}</span>
         </div>
       )
     },
@@ -181,6 +288,9 @@ export const storesColumns: ColumnDef<Store>[] = [
   },
   {
     id: 'actions',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Actions' />
+    ),
     cell: ({ row }) => <DataTableRowActions row={row} />,
   },
 ]

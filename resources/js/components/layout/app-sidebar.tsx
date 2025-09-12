@@ -5,13 +5,17 @@ import {
   SidebarRail
 } from '@/components/ui/sidebar'
 import { useLayout } from '@/context/layout-provider'
+import { useAuthStore } from '@/stores/auth-store'
 import { AppTitle } from './app-title'
-import { sidebarData } from './data/sidebar-data'
+import { getFilteredSidebarData } from './data/sidebar-data'
 import { NavGroup } from './nav-group'
 
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
-  // const { user } = useAuthStore((state) => state.auth)
+  const { auth } = useAuthStore()
+  
+  // Get filtered sidebar data based on user permissions
+  const filteredSidebarData = getFilteredSidebarData(auth.user?.permissions || [])
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
@@ -19,13 +23,10 @@ export function AppSidebar() {
         <AppTitle />
       </SidebarHeader>
       <SidebarContent>
-        {sidebarData.navGroups.map((props) => (
+        {filteredSidebarData.navGroups.map((props) => (
           <NavGroup key={props.title} {...props} />
         ))}
       </SidebarContent>
-      {/* <SidebarFooter>
-        <NavUser user={user} />
-      </SidebarFooter> */}
       <SidebarRail />
     </Sidebar>
   )

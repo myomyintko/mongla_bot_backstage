@@ -6,11 +6,10 @@ import {
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { type NavigateFn, useTableUrlState } from '@/hooks/use-table-url-state'
 import {
@@ -22,13 +21,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { DataTablePagination, DataTableToolbar } from '@/components/data-table'
-import { roles } from '../data/data'
+import { userService } from '@/services/user-service'
 import { type User } from '../data/schema'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 import { usersColumns as columns } from './users-columns'
 
 declare module '@tanstack/react-table' {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface ColumnMeta<TData, TValue> {
     className: string
   }
@@ -38,19 +36,32 @@ type DataTableProps = {
   data: User[]
   search: Record<string, unknown>
   navigate: NavigateFn
+  paginationMeta?: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
 }
 
-export function UsersTable({ data, search, navigate }: DataTableProps) {
+export function UsersTable({ data, search, navigate, paginationMeta }: DataTableProps) {
+  // Fetch available roles and statuses from API
+  const { data: availableRoles } = useQuery({
+    queryKey: ['users', 'roles'],
+    queryFn: () => userService.getAvailableRoles(),
+    staleTime: 1000 * 60 * 10, // 10 minutes
+  })
+
+  const { data: availableStatuses } = useQuery({
+    queryKey: ['users', 'statuses'],
+    queryFn: () => userService.getAvailableStatuses(),
+    staleTime: 1000 * 60 * 10, // 10 minutes
+  })
+
   // Local UI-only states
   const [rowSelection, setRowSelection] = useState({})
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [sorting, setSorting] = useState<SortingState>([])
-
-  // Local state management for table (uncomment to use local-only state, not synced with URL)
-  // const [columnFilters, onColumnFiltersChange] = useState<ColumnFiltersState>([])
-  // const [pagination, onPaginationChange] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
-
-  // Synced with URL states (keys/defaults mirror users route search schema)
   const {
     columnFilters,
     onColumnFiltersChange,
@@ -60,7 +71,12 @@ export function UsersTable({ data, search, navigate }: DataTableProps) {
   } = useTableUrlState({
     search,
     navigate,
-    pagination: { defaultPage: 1, defaultPageSize: 10 },
+    pagination: { 
+      defaultPage: 1, 
+      defaultPageSize: 10,
+      pageKey: 'page',
+      pageSizeKey: 'pageSize'
+    },
     globalFilter: { enabled: false },
     columnFilters: [
       // username per-column text filter
@@ -86,9 +102,11 @@ export function UsersTable({ data, search, navigate }: DataTableProps) {
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getPaginationRowModel: getPaginationRowModel(),
+    // Server-side pagination and filtering
+    manualPagination: true,
+    manualFiltering: true,
+    pageCount: paginationMeta ? paginationMeta.last_page : -1,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
@@ -108,17 +126,12 @@ export function UsersTable({ data, search, navigate }: DataTableProps) {
           {
             columnId: 'status',
             title: 'Status',
-            options: [
-              { label: 'Active', value: 'active' },
-              { label: 'Inactive', value: 'inactive' },
-              { label: 'Invited', value: 'invited' },
-              { label: 'Suspended', value: 'suspended' },
-            ],
+            options: availableStatuses || [],
           },
           {
             columnId: 'role',
             title: 'Role',
-            options: roles.map((role) => ({ ...role })),
+            options: availableRoles || [],
           },
         ]}
       />

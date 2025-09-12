@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\PinMessage;
@@ -12,31 +14,91 @@ class PinMessageSeeder extends Seeder
      */
     public function run(): void
     {
-        echo "Seeding pin messages...\n";
+        $this->command->info('🌱 Seeding pin messages...');
 
-        // Create some active promotional pin messages
+        // Create different types of pin messages
+        $this->createPromotionalMessages();
+        $this->createInformationalMessages();
+        $this->createSeasonalMessages();
+        $this->createWelcomeMessages();
+        $this->createMediaMessages();
+        $this->createPriorityMessages();
+
+        $totalPinMessages = PinMessage::count();
+        $this->command->info("✅ Pin messages seeded successfully! Total: {$totalPinMessages} pin messages");
+    }
+
+    /**
+     * Create promotional pin messages.
+     */
+    private function createPromotionalMessages(): void
+    {
         PinMessage::factory()
             ->count(3)
             ->active()
             ->promotional()
             ->create();
 
-        // Create some active informational pin messages
+        $this->command->info('   🎉 Created 3 promotional pin messages');
+    }
+
+    /**
+     * Create informational pin messages.
+     */
+    private function createInformationalMessages(): void
+    {
         PinMessage::factory()
             ->count(2)
             ->active()
             ->informational()
             ->create();
 
-        // Create some pin messages with media
+        $this->command->info('   ℹ️ Created 2 informational pin messages');
+    }
+
+    /**
+     * Create seasonal pin messages.
+     */
+    private function createSeasonalMessages(): void
+    {
         PinMessage::factory()
-            ->count(4)
+            ->count(2)
+            ->active()
+            ->seasonal()
+            ->create();
+
+        $this->command->info('   🌸 Created 2 seasonal pin messages');
+    }
+
+    /**
+     * Create welcome pin messages.
+     */
+    private function createWelcomeMessages(): void
+    {
+        PinMessage::factory()
+            ->count(1)
+            ->active()
+            ->welcome()
+            ->highPriority()
+            ->create();
+
+        $this->command->info('   👋 Created 1 welcome pin message');
+    }
+
+    /**
+     * Create pin messages with and without media.
+     */
+    private function createMediaMessages(): void
+    {
+        // Create pin messages with media
+        PinMessage::factory()
+            ->count(3)
             ->active()
             ->withMedia()
             ->withButton()
             ->create();
 
-        // Create some pin messages without media
+        // Create pin messages without media
         PinMessage::factory()
             ->count(2)
             ->active()
@@ -44,28 +106,35 @@ class PinMessageSeeder extends Seeder
             ->withContent()
             ->create();
 
-        // Create some inactive pin messages
+        $this->command->info('   📸 Created 3 with media and 2 without media pin messages');
+    }
+
+    /**
+     * Create priority pin messages.
+     */
+    private function createPriorityMessages(): void
+    {
+        // Create high priority messages
         PinMessage::factory()
             ->count(2)
-            ->inactive()
-            ->create();
-
-        // Create some pin messages with specific sort orders
-        PinMessage::factory()
-            ->count(3)
             ->active()
-            ->withSort(1)
+            ->highPriority()
             ->withButton()
             ->create();
 
+        // Create low priority messages
         PinMessage::factory()
             ->count(2)
             ->active()
-            ->withSort(2)
-            ->withMedia()
+            ->lowPriority()
             ->create();
 
-        $totalPinMessages = PinMessage::count();
-        echo "✅ Pin messages seeded successfully! Created {$totalPinMessages} pin messages.\n";
+        // Create inactive messages
+        PinMessage::factory()
+            ->count(1)
+            ->inactive()
+            ->create();
+
+        $this->command->info('   ⭐ Created 2 high priority, 2 low priority, and 1 inactive pin messages');
     }
 }

@@ -4,6 +4,7 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { statuses } from '../data/data'
 import { type PinMessage } from '../data/schema'
 import { DataTableRowActions } from './data-table-row-actions'
+import { Badge } from '@/components/ui/badge'
 
 export const pinMessagesColumns: ColumnDef<PinMessage>[] = [
   {
@@ -46,6 +47,7 @@ export const pinMessagesColumns: ColumnDef<PinMessage>[] = [
     ),
     cell: ({ row }) => {
       const content = row.getValue('content') as string | null
+      const mediaUrl = row.original.media_url as string | null
       
       if (!content) {
         return <span className='text-muted-foreground'>No content</span>
@@ -58,67 +60,49 @@ export const pinMessagesColumns: ColumnDef<PinMessage>[] = [
         .trim()
       
       return (
-        <div className='max-w-[200px] truncate text-sm'>
-          {plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: 'media_url',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Media' />
-    ),
-    cell: ({ row }) => {
-      const mediaUrl = row.getValue('media_url') as string | null
-      
-      if (!mediaUrl) {
-        return <span className='text-muted-foreground'>No media</span>
-      }
-
-      return (
-        <div className='w-[80px] h-[80px] flex items-center justify-center relative overflow-hidden'>
-          {/* Try to show as image first */}
-          <img
-            src={mediaUrl}
-            alt="Media preview"
-            className='w-full h-full object-cover rounded cursor-pointer hover:opacity-80 transition-opacity'
-            onClick={() => window.open(mediaUrl, '_blank')}
-            onError={(e) => {
-              // If image fails to load, try video
-              e.currentTarget.style.display = 'none'
-              const videoElement = e.currentTarget.nextElementSibling as HTMLVideoElement
-              if (videoElement) {
-                videoElement.style.display = 'block'
-                videoElement.onerror = () => {
-                  // If video also fails, show button
-                  videoElement.style.display = 'none'
-                  const buttonElement = videoElement.nextElementSibling as HTMLButtonElement
-                  if (buttonElement) {
-                    buttonElement.style.display = 'block'
-                  }
-                }
-              }
-            }}
-          />
+        <div className='flex items-start space-x-3'>
+          {/* Media Preview */}
+          {mediaUrl && (
+            <div className='w-10 h-10 flex-shrink-0 relative overflow-hidden rounded'>
+              {/\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)(\?.*)?$/i.test(mediaUrl) ? (
+                <video
+                  src={mediaUrl}
+                  className='w-full h-full object-cover'
+                  muted
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement
+                    if (fallback) fallback.style.display = 'flex'
+                  }}
+                />
+              ) : (
+                <img
+                  src={mediaUrl}
+                  alt="Media preview"
+                  className='w-full h-full object-cover'
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement
+                    if (fallback) fallback.style.display = 'flex'
+                  }}
+                />
+              )}
+              {/* Fallback for failed media */}
+              <div 
+                className='w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs text-gray-500 hidden'
+                style={{ display: 'none' }}
+              >
+                📎
+              </div>
+            </div>
+          )}
           
-          {/* Try to show as video if image fails */}
-          <video
-            src={mediaUrl}
-            className='w-full h-full object-cover rounded cursor-pointer hidden'
-            controls={false}
-            muted
-            onClick={() => window.open(mediaUrl, '_blank')}
-          />
-          
-          {/* Fallback button - hidden by default */}
-          <button
-            onClick={() => window.open(mediaUrl, '_blank')}
-            className='text-blue-600 hover:underline cursor-pointer text-sm hidden'
-            style={{ display: 'none' }}
-          >
-            View File
-          </button>
+          {/* Content */}
+          <div className='flex-1 min-w-0'>
+            <div className='text-sm font-medium'>
+              {plainText.length > 40 ? plainText.substring(0, 40) + '...' : plainText}
+            </div>
+          </div>
         </div>
       )
     },
@@ -126,33 +110,36 @@ export const pinMessagesColumns: ColumnDef<PinMessage>[] = [
   {
     accessorKey: 'btn_name',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Button Name' />
+      <DataTableColumnHeader column={column} title='Button' />
     ),
     cell: ({ row }) => {
       const btnName = row.getValue('btn_name') as string | null
+      const btnLink = row.original.btn_link as string | null
+      
+      if (!btnName && !btnLink) {
+        return (
+          <Badge variant="outline" className="text-muted-foreground bg-gray-50 dark:bg-gray-800">
+            No button
+          </Badge>
+        )
+      }
+      
       return (
-        <div className='max-w-[100px] truncate'>
-          {btnName || 'No button'}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: 'btn_link',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Button Link' />
-    ),
-    cell: ({ row }) => {
-      const btnLink = row.getValue('btn_link') as string | null
-      return (
-        <div className='max-w-[150px] truncate'>
-          {btnLink ? (
-            <span className='text-blue-600 hover:underline cursor-pointer'>
-              {btnLink.length > 20 ? btnLink.substring(0, 20) + '...' : btnLink}
-            </span>
-          ) : (
-            <span className='text-muted-foreground'>No link</span>
-          )}
+        <div className='flex flex-col space-y-1'>
+          <span className='font-medium text-sm'>
+            {btnName || 'No name'}
+          </span>
+          <span className='text-xs text-muted-foreground'>
+            {btnLink ? (
+              <span className='text-blue-600 hover:underline cursor-pointer'>
+                {btnLink.length > 30 ? btnLink.substring(0, 30) + '...' : btnLink}
+              </span>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground text-xs">
+                No link
+              </Badge>
+            )}
+          </span>
         </div>
       )
     },
@@ -212,6 +199,9 @@ export const pinMessagesColumns: ColumnDef<PinMessage>[] = [
   },
   {
     id: 'actions',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Actions' />
+    ),
     cell: ({ row }) => <DataTableRowActions row={row} />,
   },
 ]

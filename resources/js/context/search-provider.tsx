@@ -6,7 +6,7 @@ type SearchContextType = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-const SearchContext = createContext<SearchContextType | null>(null)
+export const SearchContext = createContext<SearchContextType | null>(null)
 
 type SearchProviderProps = {
   children: React.ReactNode

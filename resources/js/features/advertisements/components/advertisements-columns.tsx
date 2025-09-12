@@ -1,4 +1,5 @@
 import { DataTableColumnHeader } from '@/components/data-table'
+import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { type ColumnDef } from '@tanstack/react-table'
 import { statuses } from '../data/data'
@@ -45,99 +46,107 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
       <DataTableColumnHeader column={column} title='Title' />
     ),
     cell: ({ row }) => {
-      return (
-        <div className='flex space-x-2'>
-          <span className='max-w-32 truncate font-medium sm:max-w-72 md:max-w-[31rem]'>
-            {row.getValue('title')}
-          </span>
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: 'description',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Description' />
-    ),
-    cell: ({ row }) => {
-      const description = row.getValue('description') as string | null
-      
-      if (!description) {
-        return <span className='text-muted-foreground'>No description</span>
-      }
-      
-      // Strip markdown formatting for table display
-      const plainText = description
-        .replace(/#{1,6}\s+/g, '') // Remove headers
-        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
-        .replace(/\*(.*?)\*/g, '$1') // Remove italic
-        .replace(/`(.*?)`/g, '$1') // Remove inline code
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links
-        .replace(/\n+/g, ' ') // Replace newlines with spaces
-        .trim()
+      const title = row.getValue('title') as string
+      const description = row.original.description as string | null
+      const mediaUrl = row.original.media_url as string | null
       
       return (
-        <div className='max-w-[200px] truncate text-sm'>
-          {plainText}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: 'media_url',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Media' />
-    ),
-    cell: ({ row }) => {
-      const mediaUrl = row.getValue('media_url') as string | null
-      
-      if (!mediaUrl) {
-        return <span className='text-muted-foreground'>No media</span>
-      }
-
-      return (
-        <div className='w-[80px] h-[80px] flex items-center justify-center relative overflow-hidden'>
-          {/* Try to show as image first */}
-          <img
-            src={mediaUrl}
-            alt="Media preview"
-            className='w-full h-full object-cover rounded cursor-pointer hover:opacity-80 transition-opacity'
-            onClick={() => window.open(mediaUrl, '_blank')}
-            onError={(e) => {
-              // If image fails to load, try video
-              e.currentTarget.style.display = 'none'
-              const videoElement = e.currentTarget.nextElementSibling as HTMLVideoElement
-              if (videoElement) {
-                videoElement.style.display = 'block'
-                videoElement.onerror = () => {
-                  // If video also fails, show button
-                  videoElement.style.display = 'none'
-                  const buttonElement = videoElement.nextElementSibling as HTMLButtonElement
-                  if (buttonElement) {
-                    buttonElement.style.display = 'block'
+        <div className='flex items-center space-x-3'>
+          {/* Media Preview */}
+          <div className='flex-shrink-0'>
+            {mediaUrl ? (
+              <div className='relative w-10 h-10 rounded-lg overflow-hidden bg-muted group'>
+                {(() => {
+                  const fullUrl = mediaUrl.startsWith('http') 
+                    ? mediaUrl 
+                    : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${mediaUrl}`
+                  
+                  // Check if it's a video file
+                  const isVideo = /\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)(\?.*)?$/i.test(mediaUrl)
+                  
+                  if (isVideo) {
+                    return (
+                      <>
+                        <video
+                          src={fullUrl}
+                          className='w-full h-full object-cover'
+                          muted
+                          onError={(e) => {
+                            const target = e.target as HTMLVideoElement
+                            target.style.display = 'none'
+                            target.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                        {/* Video Play Icon Overlay */}
+                        <div className='absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
+                          <svg className='w-4 h-4 text-white' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' clipRule='evenodd' />
+                          </svg>
+                        </div>
+                        {/* Fallback for video error */}
+                        <div className='hidden absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground'>
+                          <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
+                          </svg>
+                        </div>
+                      </>
+                    )
+                  } else {
+                    return (
+                      <>
+                        <img
+                          src={fullUrl}
+                          alt={title}
+                          className='w-full h-full object-cover'
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            target.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                        {/* Fallback for image error */}
+                        <div className='hidden absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground'>
+                          <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
+                          </svg>
+                        </div>
+                      </>
+                    )
                   }
+                })()}
+              </div>
+            ) : (
+              <div className='w-10 h-10 rounded-lg bg-muted flex items-center justify-center'>
+                <svg className='w-5 h-5 text-muted-foreground' fill='currentColor' viewBox='0 0 20 20'>
+                  <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
+                </svg>
+              </div>
+            )}
+          </div>
+          
+          {/* Title and Description */}
+          <div className='flex flex-col space-y-1 min-w-0 flex-1'>
+            <span className='font-medium text-sm truncate'>
+              {title}
+            </span>
+            {description ? (
+              <span className='text-xs text-muted-foreground truncate'>
+                {description
+                  .replace(/#{1,6}\s+/g, '') // Remove headers
+                  .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+                  .replace(/\*(.*?)\*/g, '$1') // Remove italic
+                  .replace(/`(.*?)`/g, '$1') // Remove inline code
+                  .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links
+                  .replace(/\n+/g, ' ') // Replace newlines with spaces
+                  .trim()
+                  .substring(0, 60) // Truncate to 60 characters
                 }
-              }
-            }}
-          />
-          
-          {/* Try to show as video if image fails */}
-          <video
-            src={mediaUrl}
-            className='w-full h-full object-cover rounded cursor-pointer hidden'
-            controls={false}
-            muted
-            onClick={() => window.open(mediaUrl, '_blank')}
-          />
-          
-          {/* Fallback button - hidden by default */}
-          <button
-            onClick={() => window.open(mediaUrl, '_blank')}
-            className='text-blue-600 hover:underline cursor-pointer text-sm hidden'
-            style={{ display: 'none' }}
-          >
-            View File
-          </button>
+                {description.length > 60 && '...'}
+              </span>
+            ) : (
+              <span className='text-xs text-muted-foreground'>No description</span>
+            )}
+          </div>
         </div>
       )
     },
@@ -145,31 +154,22 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
   {
     accessorKey: 'start_date',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Start Date' />
+      <DataTableColumnHeader column={column} title='Operating Date' />
     ),
     cell: ({ row }) => {
-      const startDate = row.getValue('start_date') as string | null
+      const startDate = row.original.start_date as string | null
+      const endDate = row.original.end_date as string | null
       
-      if (!startDate) {
-        return <span className='text-muted-foreground'>Not set</span>
-      }
-      
-      return <div className='text-sm'>{new Date(startDate).toLocaleDateString()}</div>
-    },
-  },
-  {
-    accessorKey: 'end_date',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='End Date' />
-    ),
-    cell: ({ row }) => {
-      const endDate = row.getValue('end_date') as string | null
-      
-      if (!endDate) {
-        return <span className='text-muted-foreground'>Not set</span>
-      }
-      
-      return <div className='text-sm'>{new Date(endDate).toLocaleDateString()}</div>
+      return (
+        <div className='flex flex-col space-y-1'>
+          <span className='font-medium text-sm'>
+            {startDate ? new Date(startDate).toLocaleDateString() : 'Not set'}
+          </span>
+          <span className='text-xs text-muted-foreground'>
+            {endDate ? `to ${new Date(endDate).toLocaleDateString()}` : 'No end date'}
+          </span>
+        </div>
+      )
     },
   },
   {
@@ -183,13 +183,28 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
       )
 
       if (!status) {
-        return null
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            Unknown
+          </Badge>
+        )
       }
 
       return (
-        <div className='flex w-[100px] items-center gap-2'>
-          <span>{status.label}</span>
-        </div>
+        <Badge 
+          variant={
+            status.value === '1' ? 'default' : 
+            status.value === '2' ? 'secondary' : 
+            'destructive'
+          }
+          className={
+            status.value === '1' ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200' :
+            status.value === '2' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200' :
+            'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200'
+          }
+        >
+          {status.label}
+        </Badge>
       )
     },
     filterFn: (row, id, value) => {
@@ -199,29 +214,40 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
   {
     accessorKey: 'store_id',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Store ID' />
-    ),
-    cell: ({ row }) => {
-      const storeId = row.getValue('store_id')
-      return (
-        <div className='max-w-[100px] truncate'>
-          {storeId ? String(storeId) : 'No store'}
-        </div>
-      )
-    },
-  },
-  {
-    accessorKey: 'store',
-    header: ({ column }) => (
       <DataTableColumnHeader column={column} title='Store' />
     ),
     cell: ({ row }) => {
       const store = row.original.store
+      
+      if (!store?.name) {
+        return (
+          <Badge variant="outline" className="text-muted-foreground bg-gray-50 dark:bg-gray-800">
+            No store
+          </Badge>
+        )
+      }
+      
       return (
-        <div className='max-w-[150px] truncate'>
-          {store?.name || 'No store'}
+        <div className='flex items-center space-x-2 max-w-[150px]'>
+          <span className='text-sm font-medium truncate'>{store.name}</span>
         </div>
       )
+    },
+    filterFn: (row, _id, value) => {
+      const storeId = row.original.store_id
+      
+      // Handle "all" filter - show all rows
+      if (value.includes('all')) {
+        return true
+      }
+      
+      // Handle "none" filter - show rows with no store
+      if (value.includes('none')) {
+        return storeId === null
+      }
+      
+      // Handle specific store IDs
+      return value.includes(String(storeId))
     },
   },
   {
@@ -233,10 +259,19 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
       const frequency = row.getValue('frequency_cap_minutes') as number | null
       
       if (!frequency) {
-        return <span className='text-muted-foreground'>Not set</span>
+        return (
+          <Badge variant="outline" className="text-muted-foreground bg-gray-50 dark:bg-gray-800">
+            Not set
+          </Badge>
+        )
       }
       
-      return <div className='text-sm'>{frequency} minutes</div>
+      return (
+        <div className='flex items-center space-x-1'>
+          <span className='text-sm font-medium'>{frequency}</span>
+          <span className='text-xs text-muted-foreground'>min</span>
+        </div>
+      )
     },
   },
   {
@@ -251,6 +286,9 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
   },
   {
     id: 'actions',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Actions' className='text-center' />
+    ),
     cell: ({ row }) => <DataTableRowActions row={row} />,
   },
 ]
