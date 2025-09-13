@@ -55,7 +55,13 @@ export function DirectionProvider({ children }: { children: React.ReactNode }) {
 export function useDirection() {
   const context = useContext(DirectionContext)
   if (!context) {
-    throw new Error('useDirection must be used within a DirectionProvider')
+    console.warn('useDirection must be used within a DirectionProvider')
+    return {
+      defaultDir: DEFAULT_DIRECTION,
+      dir: DEFAULT_DIRECTION,
+      setDir: () => {},
+      resetDir: () => {},
+    }
   }
   return context
 }

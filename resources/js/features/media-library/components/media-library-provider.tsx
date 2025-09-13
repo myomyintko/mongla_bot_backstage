@@ -60,7 +60,13 @@ export function MediaLibraryProvider({ children }: MediaLibraryProviderProps) {
 export function useMediaLibrary() {
   const context = useContext(MediaLibraryContext)
   if (context === undefined) {
-    throw new Error('useMediaLibrary must be used within a MediaLibraryProvider')
+    console.warn('useMediaLibrary must be used within a MediaLibraryProvider')
+    return {
+      mediaItems: [],
+      isLoading: false,
+      error: null,
+      refetch: () => {},
+    }
   }
   return context
 }

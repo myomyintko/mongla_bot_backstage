@@ -44,7 +44,16 @@ const SidebarContext = createContext<SidebarContextProps | null>(null)
 function useSidebar() {
   const context = useContext(SidebarContext)
   if (!context) {
-    throw new Error('useSidebar must be used within a SidebarProvider.')
+    console.warn('useSidebar must be used within a SidebarProvider.')
+    return {
+      state: 'expanded',
+      open: true,
+      setOpen: () => {},
+      openMobile: false,
+      setOpenMobile: () => {},
+      isMobile: false,
+      toggleSidebar: () => {},
+    }
   }
 
   return context

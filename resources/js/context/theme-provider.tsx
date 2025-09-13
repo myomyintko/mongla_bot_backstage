@@ -104,7 +104,10 @@ export function ThemeProvider({
 export const useTheme = () => {
   const context = useContext(ThemeContext)
 
-  if (!context) throw new Error('useTheme must be used within a ThemeProvider')
+  if (!context) {
+    console.warn('useTheme must be used within a ThemeProvider')
+    return initialState
+  }
 
   return context
 }

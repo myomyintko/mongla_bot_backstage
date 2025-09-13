@@ -93,7 +93,20 @@ export function PermissionProvider({ children }: PermissionProviderProps) {
 export function usePermissions(): PermissionContextType {
   const context = useContext(PermissionContext)
   if (context === undefined) {
-    throw new Error('usePermissions must be used within a PermissionProvider')
+    console.warn('usePermissions must be used within a PermissionProvider')
+    return {
+      hasPermission: () => false,
+      hasAnyPermission: () => false,
+      hasAllPermissions: () => false,
+      hasRole: () => false,
+      hasAnyRole: () => false,
+      canView: () => false,
+      canCreate: () => false,
+      canEdit: () => false,
+      canDelete: () => false,
+      userRoles: [],
+      userPermissions: [],
+    }
   }
   return context
 }

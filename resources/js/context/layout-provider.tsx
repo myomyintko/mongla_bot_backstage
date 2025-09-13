@@ -79,7 +79,16 @@ export function LayoutProvider({ children }: LayoutProviderProps) {
 export function useLayout() {
   const context = useContext(LayoutContext)
   if (!context) {
-    throw new Error('useLayout must be used within a LayoutProvider')
+    console.warn('useLayout must be used within a LayoutProvider')
+    return {
+      resetLayout: () => {},
+      defaultCollapsible: DEFAULT_COLLAPSIBLE,
+      collapsible: DEFAULT_COLLAPSIBLE,
+      setCollapsible: () => {},
+      defaultVariant: DEFAULT_VARIANT,
+      variant: DEFAULT_VARIANT,
+      setVariant: () => {},
+    }
   }
   return context
 }

@@ -52,7 +52,11 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
 export const useFont = () => {
   const context = useContext(FontContext)
   if (!context) {
-    throw new Error('useFont must be used within a FontProvider')
+    console.warn('useFont must be used within a FontProvider')
+    return {
+      font: 'default',
+      setFont: () => {},
+    }
   }
   return context
 }
