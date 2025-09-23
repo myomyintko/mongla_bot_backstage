@@ -9,6 +9,7 @@ use App\Services\Advertisement\AdvertisementServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Carbon\Carbon;
 
 class AdvertisementController extends Controller
 {
@@ -158,7 +159,7 @@ class AdvertisementController extends Controller
         }
 
         // Check if advertisement has expired
-        if ($advertisement->end_date && now()->gt($advertisement->end_date)) {
+        if ($advertisement->end_date && Carbon::now()->gt($advertisement->end_date)) {
             return response()->json([
                 'message' => 'Cannot resume expired advertisement'
             ], 400);
@@ -171,6 +172,141 @@ class AdvertisementController extends Controller
         return response()->json([
             'message' => 'Advertisement resumed successfully',
             'advertisement' => $updatedAdvertisement
+        ]);
+    }
+
+    /**
+     * Get advertisement statistics for dashboard
+     */
+    public function stats(): JsonResponse
+    {
+        $totalAds = Advertisement::count();
+        $activeAds = Advertisement::where('status', 1)->count();
+        // Mock budget data since we don't have budget field
+        $totalSpend = $activeAds * rand(500, 2000);
+        $clickRate = 3.2; // Mock data - could be calculated from actual click tracking
+
+        return response()->json([
+            'total_ads' => $totalAds,
+            'active_ads' => $activeAds,
+            'total_spend' => $totalSpend,
+            'click_rate' => $clickRate,
+        ]);
+    }
+
+    /**
+     * Get top performing advertisements
+     */
+    public function topPerforming(): JsonResponse
+    {
+        $ads = Advertisement::select(['id', 'title'])
+            ->where('status', 1)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($ad) {
+                // Mock performance data
+                $views = rand(50000, 200000);
+                $clicks = rand(1000, 8000);
+                $ctr = round(($clicks / $views) * 100, 1);
+                return [
+                    'name' => $ad->title,
+                    'views' => number_format($views),
+                    'clicks' => number_format($clicks),
+                    'ctr' => $ctr . '%',
+                ];
+            });
+
+        return response()->json([
+            'data' => $ads
+        ]);
+    }
+
+    /**
+     * Get campaign status breakdown
+     */
+    public function statusBreakdown(): JsonResponse
+    {
+        $active = Advertisement::where('status', 1)->count();
+        $paused = Advertisement::where('status', 0)->count();
+        $completed = Advertisement::where('end_date', '<', Carbon::now())->count();
+        $draft = Advertisement::whereNull('start_date')->count();
+
+        return response()->json([
+            'active' => $active,
+            'paused' => $paused,
+            'completed' => $completed,
+            'draft' => $draft,
+        ]);
+    }
+
+    /**
+     * Get recent advertisement activity
+     */
+    public function recentActivity(): JsonResponse
+    {
+        $activities = Advertisement::select(['id', 'title', 'status', 'updated_at'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($ad) {
+                $action = match($ad->status) {
+                    1 => 'Campaign activated',
+                    0 => 'Campaign paused',
+                    default => 'Campaign updated'
+                };
+
+                return [
+                    'name' => $ad->title,
+                    'action' => $action,
+                    'time' => $ad->updated_at->diffForHumans(),
+                ];
+            });
+
+        return response()->json([
+            'data' => $activities
+        ]);
+    }
+
+    /**
+     * Get performance metrics
+     */
+    public function metrics(): JsonResponse
+    {
+        $activeAds = Advertisement::where('status', 1)->count();
+        // Mock metrics data
+        $impressions = $activeAds * rand(10000, 50000);
+        $clicks = $activeAds * rand(500, 2000);
+        $avgCpc = $clicks > 0 ? rand(50, 150) / 100 : 0;
+
+        return response()->json([
+            'impressions' => $impressions,
+            'clicks' => $clicks,
+            'cpc' => round($avgCpc, 2),
+        ]);
+    }
+
+    /**
+     * Get upcoming campaigns
+     */
+    public function upcoming(): JsonResponse
+    {
+        $campaigns = Advertisement::select(['id', 'title', 'start_date', 'status'])
+            ->where('start_date', '>', Carbon::now())
+            ->orderBy('start_date', 'asc')
+            ->limit(4)
+            ->get()
+            ->map(function ($ad) {
+                return [
+                    'name' => $ad->title,
+                    'date' => $ad->start_date->format('M j, Y'),
+                    'budget' => '$' . number_format(rand(5000, 20000)),
+                    'status' => $ad->status ? 'Scheduled' : 'Draft',
+                ];
+            });
+
+        return response()->json([
+            'data' => $campaigns
         ]);
     }
 
@@ -209,7 +345,7 @@ class AdvertisementController extends Controller
             $inactiveAds = Advertisement::where('status', 0)
                 ->where(function($query) {
                     $query->whereNull('end_date')
-                          ->orWhere('end_date', '>', now());
+                          ->orWhere('end_date', '>', Carbon::now());
                 })
                 ->get();
 

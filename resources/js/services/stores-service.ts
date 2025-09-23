@@ -97,12 +97,54 @@ export const storesService = {
   bulkImport: async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    
+
     const response = await api.post('/stores/bulk-import', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     })
+    return response.data
+  },
+
+  // Dashboard statistics methods
+  getStats: async (): Promise<{
+    total_stores: number
+    active_stores: number
+    new_stores_today: number
+    revenue: number
+  }> => {
+    const response = await api.get('/stores/stats')
+    return response.data
+  },
+
+  getTopPerforming: async (): Promise<{
+    data: Array<{
+      id: number
+      name: string
+      sales: number
+      views: number
+    }>
+  }> => {
+    const response = await api.get('/stores/top-performing')
+    return response.data
+  },
+
+  getStatusBreakdown: async (): Promise<{
+    active: number
+    inactive: number
+  }> => {
+    const response = await api.get('/stores/status-breakdown')
+    return response.data
+  },
+
+  getRecentActivity: async (): Promise<{
+    data: Array<{
+      name: string
+      action: string
+      time: string
+    }>
+  }> => {
+    const response = await api.get('/stores/recent-activity')
     return response.data
   },
 }

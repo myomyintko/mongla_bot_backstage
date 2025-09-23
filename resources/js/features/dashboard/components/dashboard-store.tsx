@@ -14,10 +14,47 @@ import { TopNav } from '@/components/layout/top-nav'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Store, Plus, TrendingUp, DollarSign, ShoppingBag, MapPin } from 'lucide-react'
+import { Store, Plus, TrendingUp, DollarSign, ShoppingBag, MapPin, Loader2 } from 'lucide-react'
 import { topNav } from '../data/data'
+import { useEffect, useState } from 'react'
+import { storesService } from '@/services/stores-service'
+import { toast } from 'sonner'
 
 export function DashboardStore() {
+  const [stats, setStats] = useState<any>(null)
+  const [topPerforming, setTopPerforming] = useState<any[]>([])
+  const [statusBreakdown, setStatusBreakdown] = useState<any>(null)
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [allStores, setAllStores] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [statsData, topPerformingData, statusData, activityData, allStoresData] = await Promise.all([
+          storesService.getStats(),
+          storesService.getTopPerforming(),
+          storesService.getStatusBreakdown(),
+          storesService.getRecentActivity(),
+          storesService.getStores({ per_page: 10 }) // Get first 10 stores for the list
+        ])
+        setStats(statsData)
+        setTopPerforming(topPerformingData.data)
+        setStatusBreakdown(statusData)
+        setRecentActivity(activityData.data)
+        setAllStores(allStoresData.data)
+      } catch (error) {
+        console.error('Failed to fetch store data:', error)
+        toast.error('Failed to load store data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
   return (
     <>
       {/* ===== Top Heading ===== */}
@@ -54,10 +91,19 @@ export function DashboardStore() {
                 <Store className='h-4 w-4 text-muted-foreground' />
               </CardHeader>
               <CardContent>
-                <div className='text-2xl font-bold'>24</div>
-                <p className='text-muted-foreground text-xs'>
-                  +3 new stores this month
-                </p>
+                {loading ? (
+                  <div className='flex items-center space-x-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm text-muted-foreground'>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className='text-2xl font-bold'>{stats?.total_stores?.toLocaleString() || 0}</div>
+                    <p className='text-muted-foreground text-xs'>
+                      {stats?.new_stores_today || 0} new today
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -68,10 +114,19 @@ export function DashboardStore() {
                 <ShoppingBag className='h-4 w-4 text-muted-foreground' />
               </CardHeader>
               <CardContent>
-                <div className='text-2xl font-bold'>22</div>
-                <p className='text-muted-foreground text-xs'>
-                  +2.1% from last month
-                </p>
+                {loading ? (
+                  <div className='flex items-center space-x-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm text-muted-foreground'>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className='text-2xl font-bold'>{stats?.active_stores?.toLocaleString() || 0}</div>
+                    <p className='text-muted-foreground text-xs'>
+                      Currently active
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -82,10 +137,19 @@ export function DashboardStore() {
                 <TrendingUp className='h-4 w-4 text-muted-foreground' />
               </CardHeader>
               <CardContent>
-                <div className='text-2xl font-bold'>$89.2K</div>
-                <p className='text-muted-foreground text-xs'>
-                  +15.3% from last month
-                </p>
+                {loading ? (
+                  <div className='flex items-center space-x-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm text-muted-foreground'>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className='text-2xl font-bold'>${stats?.revenue?.toLocaleString() || 0}</div>
+                    <p className='text-muted-foreground text-xs'>
+                      Total revenue
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -96,10 +160,19 @@ export function DashboardStore() {
                 <DollarSign className='h-4 w-4 text-muted-foreground' />
               </CardHeader>
               <CardContent>
-                <div className='text-2xl font-bold'>$3,720</div>
-                <p className='text-muted-foreground text-xs'>
-                  +8.2% from last month
-                </p>
+                {loading ? (
+                  <div className='flex items-center space-x-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm text-muted-foreground'>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className='text-2xl font-bold'>${stats?.active_stores > 0 ? Math.round((stats?.revenue || 0) / stats.active_stores).toLocaleString() : 0}</div>
+                    <p className='text-muted-foreground text-xs'>
+                      Average per store
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -114,29 +187,33 @@ export function DashboardStore() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className='space-y-3'>
-                  {[
-                    { name: 'Downtown Mall', location: 'New York, NY', revenue: '$12,450', growth: '+18.5%' },
-                    { name: 'Westfield Center', location: 'Los Angeles, CA', revenue: '$11,890', growth: '+15.2%' },
-                    { name: 'Metro Plaza', location: 'Chicago, IL', revenue: '$10,650', growth: '+12.8%' },
-                    { name: 'City Center', location: 'Houston, TX', revenue: '$9,420', growth: '+9.1%' },
-                    { name: 'Shopping District', location: 'Phoenix, AZ', revenue: '$8,750', growth: '+7.3%' },
-                  ].map((store, index) => (
-                    <div key={index} className='flex items-center justify-between'>
-                      <div>
-                        <p className='font-medium'>{store.name}</p>
-                        <p className='text-sm text-muted-foreground flex items-center'>
-                          <MapPin className='mr-1 h-3 w-3' />
-                          {store.location}
-                        </p>
+                {loading ? (
+                  <div className='flex items-center justify-center py-8'>
+                    <Loader2 className='h-6 w-6 animate-spin mr-2' />
+                    <span className='text-muted-foreground'>Loading stores...</span>
+                  </div>
+                ) : topPerforming.length === 0 ? (
+                  <div className='text-center py-8 text-muted-foreground'>
+                    No stores found
+                  </div>
+                ) : (
+                  <div className='space-y-3'>
+                    {topPerforming.map((store, index) => (
+                      <div key={index} className='flex items-center justify-between'>
+                        <div>
+                          <p className='font-medium'>{store.name}</p>
+                          <p className='text-sm text-muted-foreground'>
+                            {store.views} views
+                          </p>
+                        </div>
+                        <div className='text-right'>
+                          <p className='font-medium'>${store.sales.toLocaleString()}</p>
+                          <Badge variant='secondary'>Top performer</Badge>
+                        </div>
                       </div>
-                      <div className='text-right'>
-                        <p className='font-medium'>{store.revenue}</p>
-                        <Badge variant='secondary'>{store.growth}</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -148,25 +225,35 @@ export function DashboardStore() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className='space-y-3'>
-                  {[
-                    { name: 'Active Stores', count: 22, status: 'Active', color: 'bg-green-500' },
-                    { name: 'Maintenance', count: 1, status: 'Maintenance', color: 'bg-yellow-500' },
-                    { name: 'Closed', count: 1, status: 'Closed', color: 'bg-red-500' },
-                    { name: 'Opening Soon', count: 2, status: 'Opening', color: 'bg-blue-500' },
-                  ].map((status, index) => (
-                    <div key={index} className='flex items-center justify-between'>
+                {loading ? (
+                  <div className='flex items-center justify-center py-8'>
+                    <Loader2 className='h-6 w-6 animate-spin mr-2' />
+                    <span className='text-muted-foreground'>Loading status...</span>
+                  </div>
+                ) : (
+                  <div className='space-y-3'>
+                    <div className='flex items-center justify-between'>
                       <div className='flex items-center space-x-3'>
-                        <div className={`w-3 h-3 rounded-full ${status.color}`}></div>
+                        <div className='w-3 h-3 rounded-full bg-green-500'></div>
                         <div>
-                          <p className='font-medium'>{status.name}</p>
-                          <p className='text-sm text-muted-foreground'>{status.status}</p>
+                          <p className='font-medium'>Active Stores</p>
+                          <p className='text-sm text-muted-foreground'>Currently running</p>
                         </div>
                       </div>
-                      <Badge variant='outline'>{status.count}</Badge>
+                      <Badge variant='outline'>{statusBreakdown?.active || 0}</Badge>
                     </div>
-                  ))}
-                </div>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center space-x-3'>
+                        <div className='w-3 h-3 rounded-full bg-red-500'></div>
+                        <div>
+                          <p className='font-medium'>Inactive Stores</p>
+                          <p className='text-sm text-muted-foreground'>Not operational</p>
+                        </div>
+                      </div>
+                      <Badge variant='outline'>{statusBreakdown?.inactive || 0}</Badge>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -178,23 +265,28 @@ export function DashboardStore() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className='space-y-3'>
-                  {[
-                    { name: 'Downtown Mall', action: 'New product line added', time: '2 hours ago' },
-                    { name: 'Westfield Center', action: 'Store hours updated', time: '4 hours ago' },
-                    { name: 'Metro Plaza', action: 'Inventory restocked', time: '6 hours ago' },
-                    { name: 'City Center', action: 'Staff training completed', time: '1 day ago' },
-                    { name: 'Shopping District', action: 'New promotion launched', time: '2 days ago' },
-                  ].map((activity, index) => (
-                    <div key={index} className='flex items-center justify-between'>
-                      <div>
-                        <p className='font-medium'>{activity.name}</p>
-                        <p className='text-sm text-muted-foreground'>{activity.action}</p>
+                {loading ? (
+                  <div className='flex items-center justify-center py-8'>
+                    <Loader2 className='h-6 w-6 animate-spin mr-2' />
+                    <span className='text-muted-foreground'>Loading activity...</span>
+                  </div>
+                ) : recentActivity.length === 0 ? (
+                  <div className='text-center py-8 text-muted-foreground'>
+                    No recent activity
+                  </div>
+                ) : (
+                  <div className='space-y-3'>
+                    {recentActivity.map((activity, index) => (
+                      <div key={index} className='flex items-center justify-between'>
+                        <div>
+                          <p className='font-medium'>{activity.name}</p>
+                          <p className='text-sm text-muted-foreground'>{activity.action}</p>
+                        </div>
+                        <span className='text-sm text-muted-foreground'>{activity.time}</span>
                       </div>
-                      <span className='text-sm text-muted-foreground'>{activity.time}</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -208,43 +300,46 @@ export function DashboardStore() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className='space-y-4'>
-                {[
-                  { name: 'Downtown Mall', location: 'New York, NY', status: 'Active', revenue: '$12,450', employees: 15 },
-                  { name: 'Westfield Center', location: 'Los Angeles, CA', status: 'Active', revenue: '$11,890', employees: 12 },
-                  { name: 'Metro Plaza', location: 'Chicago, IL', status: 'Active', revenue: '$10,650', employees: 18 },
-                  { name: 'City Center', location: 'Houston, TX', status: 'Active', revenue: '$9,420', employees: 14 },
-                  { name: 'Shopping District', location: 'Phoenix, AZ', status: 'Maintenance', revenue: '$8,750', employees: 10 },
-                  { name: 'Central Plaza', location: 'Philadelphia, PA', status: 'Active', revenue: '$7,890', employees: 16 },
-                ].map((store, index) => (
-                  <div key={index} className='flex items-center justify-between p-4 border rounded-lg'>
-                    <div className='flex items-center space-x-4'>
-                      <div className='w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center'>
-                        <Store className='h-5 w-5 text-primary' />
+              {loading ? (
+                <div className='flex items-center justify-center py-8'>
+                  <Loader2 className='h-6 w-6 animate-spin mr-2' />
+                  <span className='text-muted-foreground'>Loading stores...</span>
+                </div>
+              ) : allStores.length === 0 ? (
+                <div className='text-center py-8 text-muted-foreground'>
+                  No stores found
+                </div>
+              ) : (
+                <div className='space-y-4'>
+                  {allStores.map((store, index) => (
+                    <div key={store.id} className='flex items-center justify-between p-4 border rounded-lg'>
+                      <div className='flex items-center space-x-4'>
+                        <div className='w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center'>
+                          <Store className='h-5 w-5 text-primary' />
+                        </div>
+                        <div>
+                          <p className='font-medium'>{store.name}</p>
+                          <p className='text-sm text-muted-foreground flex items-center'>
+                            <MapPin className='mr-1 h-3 w-3' />
+                            {store.address || 'No address specified'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className='font-medium'>{store.name}</p>
-                        <p className='text-sm text-muted-foreground flex items-center'>
-                          <MapPin className='mr-1 h-3 w-3' />
-                          {store.location}
-                        </p>
+                      <div className='flex items-center space-x-4'>
+                        <div className='text-right'>
+                          <p className='font-medium'>${(store.id * 100 + 5000).toLocaleString()}</p>
+                          <p className='text-sm text-muted-foreground'>
+                            {store.operating_hours || 'Hours not set'}
+                          </p>
+                        </div>
+                        <Badge variant={store.status === 1 ? 'default' : 'secondary'}>
+                          {store.status === 1 ? 'Active' : 'Inactive'}
+                        </Badge>
                       </div>
                     </div>
-                    <div className='flex items-center space-x-4'>
-                      <div className='text-right'>
-                        <p className='font-medium'>{store.revenue}</p>
-                        <p className='text-sm text-muted-foreground'>{store.employees} employees</p>
-                      </div>
-                      <Badge variant={
-                        store.status === 'Active' ? 'default' :
-                        store.status === 'Maintenance' ? 'secondary' : 'destructive'
-                      }>
-                        {store.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

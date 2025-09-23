@@ -113,4 +113,69 @@ export const advertisementsService = {
     const response = await api.post('/advertisements/bulk-resume-all')
     return response.data
   },
+
+  // Dashboard statistics methods
+  getStats: async (): Promise<{
+    total_ads: number
+    active_ads: number
+    total_spend: number
+    click_rate: number
+  }> => {
+    const response = await api.get('/advertisements/stats')
+    return response.data
+  },
+
+  getTopPerforming: async (): Promise<{
+    data: Array<{
+      name: string
+      views: string
+      clicks: string
+      ctr: string
+    }>
+  }> => {
+    const response = await api.get('/advertisements/top-performing')
+    return response.data
+  },
+
+  getStatusBreakdown: async (): Promise<{
+    active: number
+    paused: number
+    completed: number
+    draft: number
+  }> => {
+    const response = await api.get('/advertisements/status-breakdown')
+    return response.data
+  },
+
+  getRecentActivity: async (): Promise<{
+    data: Array<{
+      name: string
+      action: string
+      time: string
+    }>
+  }> => {
+    const response = await api.get('/advertisements/recent-activity')
+    return response.data
+  },
+
+  getMetrics: async (): Promise<{
+    impressions: number
+    clicks: number
+    cpc: number
+  }> => {
+    const response = await api.get('/advertisements/metrics')
+    return response.data
+  },
+
+  getUpcoming: async (): Promise<{
+    data: Array<{
+      name: string
+      date: string
+      budget: string
+      status: string
+    }>
+  }> => {
+    const response = await api.get('/advertisements/upcoming')
+    return response.data
+  },
 }

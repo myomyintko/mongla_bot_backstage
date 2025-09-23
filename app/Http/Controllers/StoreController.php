@@ -9,6 +9,7 @@ use App\Services\Store\StoreServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Carbon\Carbon;
 
 class StoreController extends Controller
 {
@@ -142,6 +143,89 @@ class StoreController extends Controller
         return response()->json([
             'message' => "Successfully deleted {$deleted} stores",
             'deleted_count' => $deleted
+        ]);
+    }
+
+    /**
+     * Get store statistics for dashboard
+     */
+    public function stats(): JsonResponse
+    {
+        $totalStores = Store::count();
+        $activeStores = Store::where('status', 1)->count();
+        $newStoresToday = Store::whereDate('created_at', Carbon::today())->count();
+        // Mock revenue based on store count (more realistic than random)
+        $revenue = $activeStores * 2500; // Fixed amount per store for consistency
+
+        return response()->json([
+            'total_stores' => $totalStores,
+            'active_stores' => $activeStores,
+            'new_stores_today' => $newStoresToday,
+            'revenue' => $revenue,
+        ]);
+    }
+
+    /**
+     * Get top performing stores
+     */
+    public function topPerforming(): JsonResponse
+    {
+        $stores = Store::select(['id', 'name'])
+            ->where('status', 1)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($store, $index) {
+                // Generate consistent mock data based on store ID
+                $baseSales = ($store->id * 100) + 5000;
+                $baseViews = ($store->id * 50) + 1000;
+
+                return [
+                    'id' => $store->id,
+                    'name' => $store->name,
+                    'sales' => $baseSales,
+                    'views' => $baseViews,
+                ];
+            });
+
+        return response()->json([
+            'data' => $stores
+        ]);
+    }
+
+    /**
+     * Get store status breakdown
+     */
+    public function statusBreakdown(): JsonResponse
+    {
+        $active = Store::where('status', 1)->count();
+        $inactive = Store::where('status', 0)->count();
+
+        return response()->json([
+            'active' => $active,
+            'inactive' => $inactive,
+        ]);
+    }
+
+    /**
+     * Get recent store activity
+     */
+    public function recentActivity(): JsonResponse
+    {
+        $activities = Store::select(['id', 'name', 'status', 'updated_at'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($store) {
+                return [
+                    'name' => $store->name,
+                    'action' => $store->status ? 'Store activated' : 'Store deactivated',
+                    'time' => $store->updated_at->diffForHumans(),
+                ];
+            });
+
+        return response()->json([
+            'data' => $activities
         ]);
     }
 

@@ -58,3 +58,4 @@ class TelegraphChatRepository implements TelegraphChatRepositoryInterface
         return TelegraphChat::where('telegraph_bot_id', $botId)->count();
     }
 }
+

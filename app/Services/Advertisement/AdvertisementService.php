@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Advertisement;
 
 use App\Jobs\ProcessAdvertisementBatch;
-use App\Jobs\ProcessAdvertisementDelivery;
-use App\Jobs\SendAdvertisementJob;
 use App\Models\Advertisement;
 use App\Repositories\Advertisement\AdvertisementRepositoryInterface;
 use App\Repositories\TelegraphChat\TelegraphChatRepositoryInterface;
@@ -22,8 +20,7 @@ class AdvertisementService implements AdvertisementServiceInterface
         private AdvertisementRepositoryInterface $advertisementRepository,
         private TelegraphBotServiceInterface $telegraphBotService,
         private TelegraphChatRepositoryInterface $telegraphChatRepository
-    ) {
-    }
+    ) {}
 
     public function getPaginated(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
@@ -37,79 +34,16 @@ class AdvertisementService implements AdvertisementServiceInterface
 
     public function create(array $data): Advertisement
     {
-        $advertisement = $this->advertisementRepository->create($data);
-
-        // Schedule the first advertisement delivery if it's active and has valid dates
-        $this->scheduleInitialDelivery($advertisement);
-
-        return $advertisement;
+        return $this->advertisementRepository->create($data);
     }
 
     public function update(Advertisement $advertisement, array $data): Advertisement
     {
-        $oldStatus = $advertisement->status;
-        $oldFrequencyCapMinutes = $advertisement->frequency_cap_minutes;
-        $oldStartDate = $advertisement->start_date;
-        $oldEndDate = $advertisement->end_date;
-
-        $updatedAdvertisement = $this->advertisementRepository->update($advertisement, $data);
-
-        // Check if scheduling parameters have changed for an active advertisement
-        $schedulingChanged = $this->hasSchedulingParametersChanged(
-            $advertisement,
-            $updatedAdvertisement,
-            $oldFrequencyCapMinutes,
-            $oldStartDate,
-            $oldEndDate
-        );
-
-        if ($schedulingChanged) {
-            Log::info('Advertisement scheduling parameters changed', [
-                'ad_id' => $updatedAdvertisement->id,
-                'status' => $updatedAdvertisement->status,
-                'old_frequency_cap' => $oldFrequencyCapMinutes,
-                'new_frequency_cap' => $updatedAdvertisement->frequency_cap_minutes,
-                'old_start_date' => $oldStartDate,
-                'new_start_date' => $updatedAdvertisement->start_date,
-                'old_end_date' => $oldEndDate,
-                'new_end_date' => $updatedAdvertisement->end_date,
-            ]);
-
-            // Always cancel existing jobs when scheduling parameters change
-            $this->cancelExistingJobs($updatedAdvertisement->id);
-
-            // Only reschedule if advertisement is active
-            if ($updatedAdvertisement->status === 1) {
-                Log::info('Advertisement is active, rescheduling delivery', [
-                    'ad_id' => $updatedAdvertisement->id,
-                ]);
-                $this->scheduleInitialDelivery($updatedAdvertisement);
-            } else {
-                Log::info('Advertisement is inactive, skipping job scheduling', [
-                    'ad_id' => $updatedAdvertisement->id,
-                ]);
-            }
-        }
-        // If advertisement was just activated, schedule initial delivery
-        elseif ($oldStatus !== 1 && $updatedAdvertisement->status === 1) {
-            $this->scheduleInitialDelivery($updatedAdvertisement);
-        }
-        // If advertisement was deactivated, cancel existing jobs
-        elseif ($oldStatus === 1 && $updatedAdvertisement->status !== 1) {
-            Log::info('Advertisement deactivated, canceling existing jobs', [
-                'ad_id' => $updatedAdvertisement->id,
-            ]);
-            $this->cancelExistingJobs($updatedAdvertisement->id);
-        }
-
-        return $updatedAdvertisement;
+        return $this->advertisementRepository->update($advertisement, $data);
     }
 
     public function delete(Advertisement $advertisement): bool
     {
-        // Cancel any existing scheduled jobs before deleting
-        $this->cancelExistingJobs($advertisement->id);
-
         return $this->advertisementRepository->delete($advertisement);
     }
 
@@ -125,11 +59,6 @@ class AdvertisementService implements AdvertisementServiceInterface
 
     public function bulkDelete(array $ids): array
     {
-        // Cancel jobs for all advertisements being deleted
-        foreach ($ids as $id) {
-            $this->cancelExistingJobs($id);
-        }
-
         $deletedCount = $this->advertisementRepository->bulkDelete($ids);
 
         return [
@@ -160,9 +89,6 @@ class AdvertisementService implements AdvertisementServiceInterface
         }
     }
 
-
-
-
     public function recordAdvertisementSend(int $advertisementId, int $userId): void
     {
         try {
@@ -173,44 +99,6 @@ class AdvertisementService implements AdvertisementServiceInterface
                 'user_id' => $userId,
                 'error' => $e->getMessage()
             ]);
-        }
-    }
-
-    /**
-     * Send advertisement via Telegram
-     */
-    private function sendAdvertisementViaTelegram(Advertisement $advertisement, int $userId): array
-    {
-        try {
-            // Build advertisement message
-            $message = $this->buildAdvertisementMessage($advertisement, $userId);
-
-            // For now, we'll use a simple approach
-            // In a real implementation, you'd use the TelegraphBotService to send to specific users
-            // This is a placeholder - you'll need to implement the actual Telegram sending logic
-
-            Log::info('Advertisement sent via Telegram', [
-                'advertisement_id' => $advertisement->id,
-                'user_id' => $userId,
-                'message' => $message
-            ]);
-
-            return [
-                'success' => true,
-                'message' => 'Advertisement sent successfully'
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Failed to send advertisement via Telegram', [
-                'advertisement_id' => $advertisement->id,
-                'user_id' => $userId,
-                'error' => $e->getMessage()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => $e->getMessage()
-            ];
         }
     }
 
@@ -312,12 +200,12 @@ class AdvertisementService implements AdvertisementServiceInterface
     {
         try {
             // Get real user information from Telegram API
-            $userInfo = $this->getTelegramUserInfo((string) $userId);
+            $userInfo = $this->getTelegramUserInfo((string)$userId);
 
             if (!$userInfo) {
                 // Return default values if user info not available
                 return [
-                    'userId' => (string) $userId,
+                    'userId' => (string)$userId,
                     'userFirstName' => 'User',
                     'userLastName' => '',
                     'userUsername' => '',
@@ -341,7 +229,7 @@ class AdvertisementService implements AdvertisementServiceInterface
             $mention = $username ? '@' . $username : ($firstName ?: 'User');
 
             return [
-                'userId' => (string) $userId,
+                'userId' => (string)$userId,
                 'userFirstName' => $firstName,
                 'userLastName' => $lastName,
                 'userUsername' => $username,
@@ -351,7 +239,6 @@ class AdvertisementService implements AdvertisementServiceInterface
                 'userIsBot' => $isBot ? 'true' : 'false',
                 'userIsPremium' => $isPremium ? 'true' : 'false',
             ];
-
         } catch (\Exception $e) {
             Log::error('Failed to get user variables for advertisement', [
                 'user_id' => $userId,
@@ -360,7 +247,7 @@ class AdvertisementService implements AdvertisementServiceInterface
 
             // Return default values on error
             return [
-                'userId' => (string) $userId,
+                'userId' => (string)$userId,
                 'userFirstName' => 'User',
                 'userLastName' => '',
                 'userUsername' => '',
@@ -411,7 +298,6 @@ class AdvertisementService implements AdvertisementServiceInterface
             ]);
 
             return $userInfo;
-
         } catch (\Exception $e) {
             Log::error('Exception while getting user info from Telegram API', [
                 'user_id' => $userId,
@@ -419,43 +305,6 @@ class AdvertisementService implements AdvertisementServiceInterface
             ]);
             return null;
         }
-    }
-
-    /**
-     * Get configured bot ID
-     */
-    private function getConfiguredBotId(): int
-    {
-        try {
-            $bot = $this->telegraphBotService->getConfiguredBot();
-            return $bot ? $bot->id : 1; // Default to 1 if no bot found
-        } catch (\Exception $e) {
-            Log::error('Failed to get configured bot ID', [
-                'error' => $e->getMessage()
-            ]);
-            return 1; // Default fallback
-        }
-    }
-
-    /**
-     * Get active Telegram users (placeholder - implement based on your user management)
-     */
-    private function getActiveTelegramUsers(): array
-    {
-        // Get all active Telegram chats from the Telegraph package
-        $chats = \DefStudio\Telegraph\Models\TelegraphChat::all();
-
-        $userIds = [];
-        foreach ($chats as $chat) {
-            $userIds[] = (int) $chat->chat_id;
-        }
-
-        Log::info('Found active Telegram users', [
-            'total_users' => count($userIds),
-            'user_ids' => $userIds,
-        ]);
-
-        return $userIds;
     }
 
     /**
@@ -533,7 +382,6 @@ class AdvertisementService implements AdvertisementServiceInterface
                 'batches_created' => $totalBatches,
                 'message' => "Created {$totalBatches} batches for delivery",
             ];
-
         } catch (\Exception $e) {
             Log::error('Failed to process advertisement delivery', [
                 'ad_id' => $advertisement->id,
@@ -557,7 +405,6 @@ class AdvertisementService implements AdvertisementServiceInterface
             $bot = $this->telegraphBotService->getConfiguredBot();
             if (!$bot) {
                 Log::warning('No bot configured, using test users');
-
             }
 
             Log::info('Getting all Telegram users for advertisement', [
@@ -588,7 +435,6 @@ class AdvertisementService implements AdvertisementServiceInterface
             ]);
 
             return $allUsers;
-
         } catch (\Exception $e) {
             Log::error('Failed to get eligible users', [
                 'ad_id' => $advertisement->id,
@@ -611,7 +457,8 @@ class AdvertisementService implements AdvertisementServiceInterface
                 'user_id' => $userId,
             ]);
 
-            Log::info('After first log in sendAdvertisementToUserPrivate', [
+            // Temporarily bypass frequency cap check to allow sending
+            Log::info('Bypassing frequency cap check to allow sending', [
                 'ad_id' => $advertisement->id,
                 'user_id' => $userId,
             ]);
@@ -639,7 +486,7 @@ class AdvertisementService implements AdvertisementServiceInterface
             if (!empty($advertisement->media_url)) {
                 // Send media with caption
                 Log::info('Sending advertisement with media', ['ad_id' => $advertisement->id]);
-                $sendResult = $this->sendAdvertisementWithMedia($advertisement, (string) $userId, $message);
+                $sendResult = $this->sendAdvertisementWithMedia($advertisement, (string)$userId, $message);
             } else {
                 // Send text-only advertisement
                 Log::info('Sending text-only advertisement', [
@@ -651,8 +498,12 @@ class AdvertisementService implements AdvertisementServiceInterface
                     // Create keyboard for text-only ads
                     $keyboard = $this->createAdvertisementKeyboard($advertisement);
 
-                    // Send text message with keyboard
-                    $sendResult = $this->telegraphBotService->sendMessage((string) $userId, $message, ['keyboard' => $keyboard]);
+                    // Send text message with keyboard using the correct method
+                    if ($keyboard) {
+                        $sendResult = $this->telegraphBotService->sendMessageWithKeyboard((string)$userId, $message, $keyboard->toArray());
+                    } else {
+                        $sendResult = $this->telegraphBotService->sendMessage((string)$userId, $message);
+                    }
 
                     if (!$sendResult || !($sendResult['success'] ?? false)) {
                         throw new \Exception($sendResult['message'] ?? 'Failed to send text message');
@@ -699,7 +550,6 @@ class AdvertisementService implements AdvertisementServiceInterface
                 'message_id' => 'telegram_sent', // We don't get the actual message ID from Telegraph
                 'telegram_response' => $sendResult['message'],
             ];
-
         } catch (\Exception $e) {
             Log::error('Failed to send advertisement to user', [
                 'ad_id' => $advertisement->id,
@@ -733,13 +583,12 @@ class AdvertisementService implements AdvertisementServiceInterface
 
             // Create keyboard with social media buttons if they exist
             $keyboard = $this->createAdvertisementKeyboard($advertisement);
-
             Log::info('Created keyboard for advertisement', [
                 'ad_id' => $advertisement->id,
-                'keyboard_exists' => $keyboard !== null,
+                'keyboard_exists' => ($keyboard !== null),
                 'sub_btns_count' => count($advertisement->sub_btns ?? []),
                 'sub_btns_data' => $advertisement->sub_btns,
-                'keyboard' => $keyboard
+                'keyboard_class' => $keyboard ? get_class($keyboard) : 'null'
             ]);
 
             // Handle localhost URLs by sending the actual file
@@ -759,12 +608,11 @@ class AdvertisementService implements AdvertisementServiceInterface
                 }
 
                 // Send local file with keyboard
-                return $this->telegraphBotService->sendMedia($userId, $localFilePath, $mediaType, $message, ['keyboard' => $keyboard]);
+                return $this->telegraphBotService->sendMedia($userId, $localFilePath, $mediaType, $message, $keyboard);
             } else {
                 // Send remote URL with keyboard
-                return $this->telegraphBotService->sendMedia($userId, $mediaUrl, $mediaType, $message, ['keyboard' => $keyboard]);
+                return $this->telegraphBotService->sendMedia($userId, $mediaUrl, $mediaType, $message, $keyboard);
             }
-
         } catch (\Exception $e) {
             Log::error('Failed to send advertisement with media', [
                 'ad_id' => $advertisement->id,
@@ -782,35 +630,60 @@ class AdvertisementService implements AdvertisementServiceInterface
     /**
      * Create keyboard with social media buttons for advertisements
      */
-    private function createAdvertisementKeyboard(Advertisement $advertisement): Keyboard
+    private function createAdvertisementKeyboard(Advertisement $advertisement): ?Keyboard
     {
-        $subBtns = $advertisement->sub_btns ?? [];
-        $socialButtons = [];
+        $subBtnsRaw = $advertisement->sub_btns ?? [];
+        $subBtns = is_string($subBtnsRaw)
+            ? (json_decode($subBtnsRaw, true) ?: [])
+            : (is_array($subBtnsRaw) ? $subBtnsRaw : []);
+
+        $allButtons = [];
 
         // Add social media buttons
-        if (!empty($subBtns) && is_array($subBtns)) {
-            foreach ($subBtns as $socialBtn) {
-                if (!empty($socialBtn['url']) && !empty($socialBtn['label'])) {
-                    $buttonText = $socialBtn['label'];
-                    $buttonUrl = $this->buildSocialMediaUrl($socialBtn['platform'], $socialBtn['url']);
-
-                    if ($buttonUrl) {
-                        $socialButtons[] = Button::make($buttonText)->url($buttonUrl);
-                    }
+        foreach ($subBtns as $socialBtn) {
+            Log::info('Processing social media button', [
+                'ad_id' => $advertisement->id,
+                'socialBtn' => $socialBtn,
+            ]);
+            if (!empty($socialBtn['url']) && !empty($socialBtn['label'])) {
+                $buttonText = $socialBtn['label'];
+                $buttonUrl = $this->buildSocialMediaUrl($socialBtn['platform'], $socialBtn['url']);
+                Log::info('Built social media URL', [
+                    'ad_id' => $advertisement->id,
+                    'buttonText' => $buttonText,
+                    'buttonUrl' => $buttonUrl,
+                ]);
+                if ($buttonUrl) {
+                    $allButtons[] = Button::make($buttonText)->url($buttonUrl);
                 }
             }
         }
 
+        if (empty($allButtons)) {
+            // No buttons -> no keyboard
+            Log::info('<=================== no keyboard==============>');
+            return null;
+        }
+
         // Group all buttons into pairs for two columns
         $keyboard = Keyboard::make();
-        if (!empty($socialButtons)) {
-            $buttonPairs = array_chunk($socialButtons, 2);
+        if (!empty($allButtons)) {
+            $buttonPairs = array_chunk($allButtons, 2);
             foreach ($buttonPairs as $pair) {
                 $keyboard->row($pair);
             }
         }
 
-        Log::info('subBtns:=============>'. count($subBtns));
+        Log::info('Created keyboard for advertisement===================>', [
+            'ad_id' => $advertisement->id,
+            'keyboard_exists' => ($keyboard !== null),
+            'sub_btns_count' => count($subBtns),
+            'sub_btns_data' => $subBtns,
+            'keyboard_class' => $keyboard ? get_class($keyboard) : 'null',
+            'keyboard' => $keyboard,
+            'allButtons_count' => count($allButtons),
+            'allButtons' => $allButtons
+        ]);
 
         return $keyboard;
     }
@@ -870,140 +743,4 @@ class AdvertisementService implements AdvertisementServiceInterface
         // Convert to public path
         return public_path($path);
     }
-
-    /**
-     * Schedule the initial delivery for a new advertisement
-     */
-    private function scheduleInitialDelivery(Advertisement $advertisement): void
-    {
-        try {
-            // Only schedule if advertisement is active
-            if ($advertisement->status !== 1) {
-                Log::info('Advertisement not active, skipping initial delivery', [
-                    'ad_id' => $advertisement->id,
-                    'status' => $advertisement->status,
-                ]);
-                return;
-            }
-
-            // Cancel any existing jobs first to prevent duplicates
-            $this->cancelExistingJobs($advertisement->id);
-
-            $now = now();
-            $startDate = $advertisement->start_date ? $advertisement->start_date : $now;
-            $endDate = $advertisement->end_date;
-
-            // Check if advertisement is within valid date range
-            if ($endDate && $now->gt($endDate)) {
-                Log::info('Advertisement end date has passed, skipping initial delivery', [
-                    'ad_id' => $advertisement->id,
-                    'end_date' => $endDate,
-                    'current_time' => $now,
-                ]);
-                return;
-            }
-
-            // Check if there's already a scheduled delivery job for this advertisement
-            $existingJob = \DB::table('jobs')
-                ->where('queue', 'advertisements')
-                ->where('payload', 'like', '%ProcessAdvertisementDelivery%')
-                ->where('payload', 'like', '%i:' . $advertisement->id . ';%')
-                ->where('available_at', '>', now()->timestamp)
-                ->first();
-
-            if ($existingJob) {
-                Log::info('Job already scheduled for this advertisement, skipping duplicate scheduling', [
-                    'ad_id' => $advertisement->id,
-                    'existing_job_id' => $existingJob->id,
-                ]);
-                return;
-            }
-
-            // Determine when to start delivery
-            $frequencyMinutes = $advertisement->frequency_cap_minutes ?? 1440; // Default to 24 hours if not set
-
-            if ($startDate->isFuture()) {
-                // If start date is in future, schedule for start_date + frequency_cap
-                $deliveryTime = $startDate->copy()->addMinutes($frequencyMinutes);
-            } else {
-                // If start date is now or past, schedule for current_time + frequency_cap
-                $deliveryTime = $now->copy()->addMinutes($frequencyMinutes);
-            }
-
-            // Schedule the first delivery
-            ProcessAdvertisementDelivery::dispatch($advertisement)
-                ->delay($deliveryTime)
-                ->onQueue('advertisements');
-
-            Log::info('Initial advertisement delivery scheduled', [
-                'ad_id' => $advertisement->id,
-                'delivery_time' => $deliveryTime->format('Y-m-d H:i:s'),
-                'frequency_minutes' => $advertisement->frequency_cap_minutes ?? 1440,
-                'start_date' => $startDate->format('Y-m-d H:i:s'),
-                'end_date' => $endDate ? $endDate->format('Y-m-d H:i:s') : 'No end date',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to schedule initial advertisement delivery', [
-                'ad_id' => $advertisement->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-        }
-    }
-
-    /**
-     * Check if scheduling parameters have changed
-     */
-    private function hasSchedulingParametersChanged(
-        Advertisement $oldAdvertisement,
-        Advertisement $newAdvertisement,
-        ?int $oldFrequencyCapMinutes,
-        ?\Carbon\Carbon $oldStartDate,
-        ?\Carbon\Carbon $oldEndDate
-    ): bool {
-        // Check frequency cap change
-        if ($oldFrequencyCapMinutes !== $newAdvertisement->frequency_cap_minutes) {
-            return true;
-        }
-
-        // Check start date change
-        if (($oldStartDate?->timestamp ?? null) !== ($newAdvertisement->start_date?->timestamp ?? null)) {
-            return true;
-        }
-
-        // Check end date change
-        if (($oldEndDate?->timestamp ?? null) !== ($newAdvertisement->end_date?->timestamp ?? null)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Cancel existing scheduled jobs for an advertisement
-     */
-    private function cancelExistingJobs(int $advertisementId): void
-    {
-        try {
-            // Delete scheduled jobs from the jobs table
-            $deletedCount = \DB::table('jobs')
-                ->where('queue', 'advertisements')
-                ->where('payload', 'like', '%ProcessAdvertisementDelivery%')
-                ->where('payload', 'like', '%i:' . $advertisementId . ';%')
-                ->delete();
-
-            Log::info('Canceled existing advertisement jobs', [
-                'ad_id' => $advertisementId,
-                'jobs_canceled' => $deletedCount,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to cancel existing advertisement jobs', [
-                'ad_id' => $advertisementId,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
 }

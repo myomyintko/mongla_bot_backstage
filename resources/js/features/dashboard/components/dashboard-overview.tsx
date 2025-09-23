@@ -16,8 +16,40 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { Overview } from './overview'
 import { RecentSales } from './recent-sales'
 import { topNav } from '../data/data'
+import { useEffect, useState } from 'react'
+import DashboardService from '@/services/dashboard-service'
+import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
 export function DashboardOverview() {
+  const [overview, setOverview] = useState<any>(null)
+  const [monthlyRevenue, setMonthlyRevenue] = useState<any[]>([])
+  const [recentSales, setRecentSales] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [overviewData, monthlyData, salesData] = await Promise.all([
+          DashboardService.getOverview(),
+          DashboardService.getMonthlyRevenue(),
+          DashboardService.getRecentSales()
+        ])
+        setOverview(overviewData)
+        setMonthlyRevenue(monthlyData)
+        setRecentSales(salesData.data)
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
+        toast.error('Failed to load dashboard data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
   return (
     <>
       {/* ===== Top Heading ===== */}
@@ -61,10 +93,19 @@ export function DashboardOverview() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className='text-2xl font-bold'>$45,231.89</div>
-                <p className='text-muted-foreground text-xs'>
-                  +20.1% from last month
-                </p>
+                {loading ? (
+                  <div className='flex items-center space-x-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm text-muted-foreground'>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className='text-2xl font-bold'>${overview?.total_revenue?.toLocaleString() || 0}</div>
+                    <p className='text-muted-foreground text-xs'>
+                      Total revenue generated
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -88,10 +129,19 @@ export function DashboardOverview() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className='text-2xl font-bold'>+2350</div>
-                <p className='text-muted-foreground text-xs'>
-                  +180.1% from last month
-                </p>
+                {loading ? (
+                  <div className='flex items-center space-x-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm text-muted-foreground'>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className='text-2xl font-bold'>+{overview?.subscriptions?.toLocaleString() || 0}</div>
+                    <p className='text-muted-foreground text-xs'>
+                      Telegram bot users
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -112,10 +162,19 @@ export function DashboardOverview() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className='text-2xl font-bold'>+12,234</div>
-                <p className='text-muted-foreground text-xs'>
-                  +19% from last month
-                </p>
+                {loading ? (
+                  <div className='flex items-center space-x-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm text-muted-foreground'>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className='text-2xl font-bold'>+{overview?.sales?.toLocaleString() || 0}</div>
+                    <p className='text-muted-foreground text-xs'>
+                      Total orders placed
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -137,10 +196,19 @@ export function DashboardOverview() {
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className='text-2xl font-bold'>+573</div>
-                <p className='text-muted-foreground text-xs'>
-                  +201 since last hour
-                </p>
+                {loading ? (
+                  <div className='flex items-center space-x-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    <span className='text-sm text-muted-foreground'>Loading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className='text-2xl font-bold'>+{overview?.active_now?.toLocaleString() || 0}</div>
+                    <p className='text-muted-foreground text-xs'>
+                      Active in last 5 minutes
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -150,7 +218,7 @@ export function DashboardOverview() {
                 <CardTitle>Overview</CardTitle>
               </CardHeader>
               <CardContent className='ps-2'>
-                <Overview />
+                <Overview data={monthlyRevenue} loading={loading} />
               </CardContent>
             </Card>
             <Card className='col-span-1 lg:col-span-3'>
@@ -161,7 +229,7 @@ export function DashboardOverview() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <RecentSales />
+                <RecentSales data={recentSales} loading={loading} />
               </CardContent>
             </Card>
           </div>

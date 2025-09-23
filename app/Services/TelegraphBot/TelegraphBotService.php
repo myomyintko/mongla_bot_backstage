@@ -773,7 +773,7 @@ class TelegraphBotService implements TelegraphBotServiceInterface
     /**
      * Send photo to a chat
      */
-    public function sendMedia(string $chatId, string $media, string $mediaType, string $caption = '', Keyboard $socialKeyboard): array
+    public function sendMedia(string $chatId, string $media, string $mediaType, string $caption = '', ?Keyboard $socialKeyboard = null): array
     {
         $bot = $this->getConfiguredBot();
 
@@ -801,31 +801,55 @@ class TelegraphBotService implements TelegraphBotServiceInterface
                 ]);
             }
 
-            // Prepare the message builder
-            $messageBuilder = null;
-            switch ($mediaType) {
-                case 'photo':
-                case 'image':
-                    $messageBuilder = $chat->photo($media)->message($caption);
-                    break;
-                case 'video':
-                    $messageBuilder = $chat->document($media)->message($caption);
-                    break;
-                default:
-                    // Default to photo for unknown types
-                    $messageBuilder = $chat->photo($media)->message($caption);
-                    break;
-            }
-
-            // Add keyboard if provided
+            // Send media with keyboard using the same pattern as CallbackHandler
             if ($socialKeyboard !== null) {
-                $messageBuilder->keyboard($socialKeyboard);
+                Log::info('Sending with keyboard using direct method chaining', [
+                    'keyboard_class' => get_class($socialKeyboard),
+                    'keyboard_array' => $socialKeyboard->toArray()
+                ]);
+
+                switch ($mediaType) {
+                    case 'photo':
+                    case 'image':
+                        $response = $chat->photo($media)
+                            ->message($caption)
+                            ->keyboard($socialKeyboard)
+                            ->send();
+                        break;
+                    case 'video':
+                        $response = $chat->video($media)
+                            ->message($caption)
+                            ->keyboard($socialKeyboard)
+                            ->send();
+                        break;
+                    default:
+                        $response = $chat->photo($media)
+                            ->message($caption)
+                            ->keyboard($socialKeyboard)
+                            ->send();
+                        break;
+                }
+            } else {
+                Log::info('Sending without keyboard');
+
+                switch ($mediaType) {
+                    case 'photo':
+                    case 'image':
+                        $response = $chat->photo($media)->message($caption)->send();
+                        break;
+                    case 'video':
+                        $response = $chat->video($media)->message($caption)->send();
+                        break;
+                    default:
+                        $response = $chat->photo($media)->message($caption)->send();
+                        break;
+                }
             }
 
-            // Send the message
-            $response = $messageBuilder->send();
+            // Log both the response and any potential keyboard info in the request
             Log::info('message sent===================>', [
-                'response' => $response->json() ?? 'No response data'
+                'response' => $response->json() ?? 'No response data',
+                'response_has_reply_markup' => isset($response->json()['result']['reply_markup'])
             ]);
 
             Log::info('Media sent', [
