@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { type Table } from '@tanstack/react-table'
 import { AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { sleep } from '@/lib/utils'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { menuButtonsService } from '@/services/menu-buttons-service'
+import { type MenuButton } from '../data/schema'
 
 type MenuButtonsMultiDeleteDialogProps<TData> = {
   open: boolean
@@ -24,8 +26,28 @@ export function MenuButtonsMultiDeleteDialog<TData>({
   table,
 }: MenuButtonsMultiDeleteDialogProps<TData>) {
   const [value, setValue] = useState('')
+  const queryClient = useQueryClient()
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      return menuButtonsService.bulkDelete({ ids })
+    },
+    onSuccess: () => {
+      toast.success(`Deleted ${selectedRows.length} ${
+        selectedRows.length > 1 ? 'menu buttons' : 'menu button'
+      }`)
+      queryClient.invalidateQueries({ queryKey: ['menu-buttons'] })
+      table.resetRowSelection()
+      setValue('')
+      onOpenChange(false)
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to delete menu buttons'
+      toast.error(message)
+    },
+  })
 
   const handleDelete = () => {
     if (value.trim() !== CONFIRM_WORD) {
@@ -33,18 +55,9 @@ export function MenuButtonsMultiDeleteDialog<TData>({
       return
     }
 
-    onOpenChange(false)
-
-    toast.promise(sleep(2000), {
-      loading: 'Deleting menu buttons...',
-      success: () => {
-        table.resetRowSelection()
-        return `Deleted ${selectedRows.length} ${
-          selectedRows.length > 1 ? 'menu buttons' : 'menu button'
-        }`
-      },
-      error: 'Error',
-    })
+    const selectedMenuButtons = selectedRows.map((row) => row.original as MenuButton)
+    const ids = selectedMenuButtons.map(item => item.id)
+    bulkDeleteMutation.mutate(ids)
   }
 
   return (
@@ -52,7 +65,7 @@ export function MenuButtonsMultiDeleteDialog<TData>({
       open={open}
       onOpenChange={onOpenChange}
       handleConfirm={handleDelete}
-      disabled={value.trim() !== CONFIRM_WORD}
+      disabled={value.trim() !== CONFIRM_WORD || bulkDeleteMutation.isPending}
       title={
         <span className='text-destructive'>
           <AlertTriangle

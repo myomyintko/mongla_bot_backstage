@@ -5,35 +5,28 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\PinMessage;
+use App\Services\PinMessage\PinMessageServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class PinMessageController extends Controller
 {
+    public function __construct(
+        private PinMessageServiceInterface $pinMessageService
+    ) {}
     /**
      * Display a listing of pin messages
      */
     public function index(Request $request): JsonResponse
     {
-        $query = PinMessage::query();
+        $filters = [
+            'status' => $request->get('status'),
+            'search' => $request->get('search'),
+        ];
 
-        // Filter by status if provided
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Search by content
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('content', 'like', '%' . $search . '%')
-                  ->orWhere('btn_name', 'like', '%' . $search . '%')
-                  ->orWhere('btn_link', 'like', '%' . $search . '%');
-            });
-        }
-
-        $pinMessages = $query->paginate($request->get('per_page', 15));
+        $perPage = (int) $request->get('per_page', 15);
+        $pinMessages = $this->pinMessageService->getPaginated($filters, $perPage);
 
         return response()->json($pinMessages);
     }
@@ -52,9 +45,7 @@ class PinMessageController extends Controller
             'btn_link' => 'nullable|string|max:500',
         ]);
 
-        $validated['status'] = $validated['status'] ?? 1;
-
-        $pinMessage = PinMessage::create($validated);
+        $pinMessage = $this->pinMessageService->create($validated);
 
         return response()->json($pinMessage, 201);
     }
@@ -81,7 +72,7 @@ class PinMessageController extends Controller
             'btn_link' => 'nullable|string|max:500',
         ]);
 
-        $pinMessage->update($validated);
+        $pinMessage = $this->pinMessageService->update($pinMessage, $validated);
 
         return response()->json($pinMessage);
     }
@@ -91,7 +82,7 @@ class PinMessageController extends Controller
      */
     public function destroy(PinMessage $pinMessage): JsonResponse
     {
-        $pinMessage->delete();
+        $this->pinMessageService->delete($pinMessage);
         return response()->json(['message' => 'Pin message deleted successfully']);
     }
 
@@ -110,13 +101,9 @@ class PinMessageController extends Controller
             'updates.btn_link' => 'nullable|string|max:500',
         ]);
 
-        $updated = PinMessage::whereIn('id', $validated['ids'])
-            ->update($validated['updates']);
+        $result = $this->pinMessageService->bulkUpdate($validated['ids'], $validated['updates']);
 
-        return response()->json([
-            'message' => "Successfully updated {$updated} pin messages",
-            'updated_count' => $updated
-        ]);
+        return response()->json($result);
     }
 
     /**
@@ -129,11 +116,8 @@ class PinMessageController extends Controller
             'ids.*' => 'integer|exists:pin_messages,id',
         ]);
 
-        $deleted = PinMessage::whereIn('id', $validated['ids'])->delete();
+        $result = $this->pinMessageService->bulkDelete($validated['ids']);
 
-        return response()->json([
-            'message' => "Successfully deleted {$deleted} pin messages",
-            'deleted_count' => $deleted
-        ]);
+        return response()->json($result);
     }
 }

@@ -19,12 +19,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { useTheme } from '@/context/theme-provider'
 import { type MediaLibraryItem } from '@/services/media-library-service'
 import { pinMessagesService } from '@/services/pin-messages-service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import MDEditor from '@uiw/react-md-editor'
+import { TelegramEditor } from '@/components/telegram-editor'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -53,7 +52,6 @@ export function PinMessagesMutateDrawer({
   onOpenChange,
   currentRow,
   }: PinMessagesMutateDrawerProps) {
-  const { resolvedTheme } = useTheme()
   const isUpdate = !!currentRow
   const queryClient = useQueryClient()
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
@@ -188,7 +186,7 @@ export function PinMessagesMutateDrawer({
         onOpenChange(v)
       }}
     >
-      <SheetContent className='flex flex-col'>
+      <SheetContent className='flex flex-col w-full sm:w-3/4 sm:max-w-2xl'>
         <SheetHeader className='text-start'>
           <SheetTitle>{isUpdate ? 'Update' : 'Create'} Pin Message</SheetTitle>
           <SheetDescription>
@@ -213,13 +211,11 @@ export function PinMessagesMutateDrawer({
                    <FormLabel>Content <span className="text-red-500">*</span></FormLabel>
                    <FormControl>
                      <div className="mt-2">
-                       <MDEditor
+                       <TelegramEditor
                          value={field.value || ''}
                          onChange={(value) => field.onChange(value || '')}
-                         data-color-mode={resolvedTheme}
+                         placeholder="Enter pin message content..."
                          height={300}
-                         preview="edit"
-                         hideToolbar={false}
                        />
                      </div>
                    </FormControl>

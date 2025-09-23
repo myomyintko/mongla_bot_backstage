@@ -19,6 +19,25 @@ class StoreFactory extends Factory
     protected $model = Store::class;
 
     /**
+     * Static counter to ensure unique names.
+     */
+    private static int $nameCounter = 0;
+    
+    /**
+     * Tracks used names to prevent duplicates.
+     */
+    private static array $usedNames = [];
+
+    /**
+     * Reset the name counter and used names.
+     */
+    public static function resetNameCounter(): void
+    {
+        self::$nameCounter = 0;
+        self::$usedNames = [];
+    }
+
+    /**
      * Store categories with emojis and descriptions.
      */
     private static array $storeCategories = [
@@ -71,8 +90,7 @@ class StoreFactory extends Factory
         $type = fake()->randomElement($categoryData['types']);
         $description = fake()->randomElement($categoryData['descriptions']);
         
-        $companyName = fake()->company();
-        $storeName = $emoji . ' ' . $companyName . ' ' . $type;
+        $storeName = $this->generateUniqueStoreName($emoji, $type);
 
         // Generate realistic operating hours
         $openHour = fake()->time('H:i');
@@ -81,22 +99,46 @@ class StoreFactory extends Factory
         return [
             'name' => $storeName,
             'description' => $description . '. ' . fake()->paragraph(2),
-            'media_url' => fake()->optional(0.4)->imageUrl(800, 600, 'business'),
-            'menu_urls' => fake()->optional(0.3)->randomElements([
-                'https://example.com/menu1.pdf',
-                'https://example.com/menu2.jpg',
-                'https://example.com/menu3.png',
-            ], fake()->numberBetween(1, 2)),
+            'media_url' => null, // No media by default
+            'menu_urls' => null, // No menu URLs by default
             'open_hour' => $openHour,
             'close_hour' => $closeHour,
-            'status' => fake()->randomElement([0, 1]),
+            'status' => 1, // Active by default
             'address' => fake()->streetAddress() . ', ' . fake()->city() . ', ' . fake()->state(),
             'recommand' => fake()->boolean(25), // 25% chance of being recommended
-            'sub_btns' => fake()->optional(0.2)->randomElements([
-                'Order Online', 'Book Table', 'Call Now', 'Get Directions', 'View Menu'
-            ], fake()->numberBetween(1, 3)),
+            'sub_btns' => null, // No sub buttons by default
             'menu_button_id' => null, // Will be set by seeder
         ];
+    }
+
+    /**
+     * Generate a unique store name.
+     */
+    private function generateUniqueStoreName(string $emoji, string $type): string
+    {
+        do {
+            // Increment counter for guaranteed uniqueness
+            self::$nameCounter++;
+            
+            // Generate a unique company name using counter and random elements
+            $companyWords = ['Inc', 'LLC', 'Corp', 'Group', 'Associates', 'Partners', 'Company', 'Enterprises'];
+            $adjectives = ['Global', 'Premium', 'Elite', 'Royal', 'Golden', 'Supreme', 'Best', 'Quality'];
+            
+            $companyName = fake()->lastName() . ' ' . fake()->randomElement($companyWords);
+            if (self::$nameCounter % 3 === 0) {
+                $companyName = fake()->randomElement($adjectives) . ' ' . $companyName;
+            }
+            
+            $uniqueId = self::$nameCounter;
+            $baseName = $emoji . ' ' . $companyName . ' ' . $type;
+            $storeName = $baseName . ' #' . $uniqueId;
+            
+        } while (in_array($storeName, self::$usedNames));
+        
+        // Track this name as used
+        self::$usedNames[] = $storeName;
+        
+        return $storeName;
     }
 
     /**
@@ -144,17 +186,21 @@ class StoreFactory extends Factory
      */
     public function food(): static
     {
-        $categoryData = self::$storeCategories['food'];
-        $emoji = fake()->randomElement($categoryData['emojis']);
-        $type = fake()->randomElement($categoryData['types']);
-        $description = fake()->randomElement($categoryData['descriptions']);
-        
-        return $this->state(fn (array $attributes) => [
-            'name' => $emoji . ' ' . fake()->company() . ' ' . $type,
-            'description' => $description . '. ' . fake()->paragraph(2),
-            'open_hour' => fake()->time('H:i'),
-            'close_hour' => fake()->time('H:i'),
-        ]);
+        return $this->state(function (array $attributes) {
+            $categoryData = self::$storeCategories['food'];
+            $emoji = fake()->randomElement($categoryData['emojis']);
+            $type = fake()->randomElement($categoryData['types']);
+            $description = fake()->randomElement($categoryData['descriptions']);
+            
+            $storeName = $this->generateUniqueStoreName($emoji, $type);
+            
+            return [
+                'name' => $storeName,
+                'description' => $description . '. ' . fake()->paragraph(2),
+                'open_hour' => fake()->time('H:i'),
+                'close_hour' => fake()->time('H:i'),
+            ];
+        });
     }
 
     /**
@@ -162,17 +208,21 @@ class StoreFactory extends Factory
      */
     public function shopping(): static
     {
-        $categoryData = self::$storeCategories['shopping'];
-        $emoji = fake()->randomElement($categoryData['emojis']);
-        $type = fake()->randomElement($categoryData['types']);
-        $description = fake()->randomElement($categoryData['descriptions']);
-        
-        return $this->state(fn (array $attributes) => [
-            'name' => $emoji . ' ' . fake()->company() . ' ' . $type,
-            'description' => $description . '. ' . fake()->paragraph(2),
-            'open_hour' => fake()->time('H:i'),
-            'close_hour' => fake()->time('H:i'),
-        ]);
+        return $this->state(function (array $attributes) {
+            $categoryData = self::$storeCategories['shopping'];
+            $emoji = fake()->randomElement($categoryData['emojis']);
+            $type = fake()->randomElement($categoryData['types']);
+            $description = fake()->randomElement($categoryData['descriptions']);
+            
+            $storeName = $this->generateUniqueStoreName($emoji, $type);
+            
+            return [
+                'name' => $storeName,
+                'description' => $description . '. ' . fake()->paragraph(2),
+                'open_hour' => fake()->time('H:i'),
+                'close_hour' => fake()->time('H:i'),
+            ];
+        });
     }
 
     /**
@@ -180,17 +230,21 @@ class StoreFactory extends Factory
      */
     public function service(): static
     {
-        $categoryData = self::$storeCategories['services'];
-        $emoji = fake()->randomElement($categoryData['emojis']);
-        $type = fake()->randomElement($categoryData['types']);
-        $description = fake()->randomElement($categoryData['descriptions']);
-        
-        return $this->state(fn (array $attributes) => [
-            'name' => $emoji . ' ' . fake()->company() . ' ' . $type,
-            'description' => $description . '. ' . fake()->paragraph(2),
-            'open_hour' => fake()->time('H:i'),
-            'close_hour' => fake()->time('H:i'),
-        ]);
+        return $this->state(function (array $attributes) {
+            $categoryData = self::$storeCategories['services'];
+            $emoji = fake()->randomElement($categoryData['emojis']);
+            $type = fake()->randomElement($categoryData['types']);
+            $description = fake()->randomElement($categoryData['descriptions']);
+            
+            $storeName = $this->generateUniqueStoreName($emoji, $type);
+            
+            return [
+                'name' => $storeName,
+                'description' => $description . '. ' . fake()->paragraph(2),
+                'open_hour' => fake()->time('H:i'),
+                'close_hour' => fake()->time('H:i'),
+            ];
+        });
     }
 
     /**
@@ -278,5 +332,56 @@ class StoreFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'menu_button_id' => null,
         ]);
+    }
+
+    /**
+     * Create a store for a specific category with custom emoji and type.
+     */
+    public function forCategory(string $category, string $emoji, string $type): static
+    {
+        $categoryData = self::$storeCategories[$category] ?? self::$storeCategories['food'];
+        $description = fake()->randomElement($categoryData['descriptions']);
+        
+        $storeName = $this->generateUniqueStoreName($emoji, $type);
+
+        return $this->state(fn (array $attributes) => [
+            'name' => $storeName,
+            'description' => $description . '. ' . fake()->paragraph(2),
+            // Preserve menu_button_id if it was already set
+            'menu_button_id' => $attributes['menu_button_id'] ?? null,
+        ]);
+    }
+
+    /**
+     * Create a food store with specific type.
+     */
+    public function foodStore(string $emoji = null, string $type = null): static
+    {
+        $emoji = $emoji ?? fake()->randomElement(self::$storeCategories['food']['emojis']);
+        $type = $type ?? fake()->randomElement(self::$storeCategories['food']['types']);
+        
+        return $this->forCategory('food', $emoji, $type);
+    }
+
+    /**
+     * Create a shopping store with specific type.
+     */
+    public function shoppingStore(string $emoji = null, string $type = null): static
+    {
+        $emoji = $emoji ?? fake()->randomElement(self::$storeCategories['shopping']['emojis']);
+        $type = $type ?? fake()->randomElement(self::$storeCategories['shopping']['types']);
+        
+        return $this->forCategory('shopping', $emoji, $type);
+    }
+
+    /**
+     * Create a service store with specific type.
+     */
+    public function serviceStore(string $emoji = null, string $type = null): static
+    {
+        $emoji = $emoji ?? fake()->randomElement(self::$storeCategories['services']['emojis']);
+        $type = $type ?? fake()->randomElement(self::$storeCategories['services']['types']);
+        
+        return $this->forCategory('services', $emoji, $type);
     }
 }

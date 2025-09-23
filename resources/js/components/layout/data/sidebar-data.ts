@@ -11,7 +11,9 @@ import {
     ImageIcon,
     Users,
     UserCircle,
-    ShieldCheck
+    ShieldCheck,
+    Bot,
+    FileText
 } from 'lucide-react';
 import { type SidebarData } from '../types';
 
@@ -61,6 +63,18 @@ const baseSidebarData: SidebarData = {
                     url: '/media-library',
                     icon: ImageIcon,
                     permission: 'media',
+                },
+                {
+                    title: 'Telegraph Bots',
+                    url: '/telegraph/bots',
+                    icon: Bot,
+                    permission: 'telegraph',
+                },
+                {
+                    title: 'Bot Templates',
+                    url: '/bot-templates',
+                    icon: FileText,
+                    permission: 'bot-templates',
                 },
                 {
                     title: 'System User & Role',

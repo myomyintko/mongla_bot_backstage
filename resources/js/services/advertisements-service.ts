@@ -18,6 +18,12 @@ export interface AdvertisementCreateData {
   start_date?: string | null
   end_date?: string | null
   frequency_cap_minutes?: number | null
+  sub_btns?: Array<{
+    id: string
+    platform: string
+    label: string | null
+    url: string | null
+  }> | null
 }
 
 export interface AdvertisementUpdateData extends Partial<AdvertisementCreateData> {}
@@ -81,6 +87,30 @@ export const advertisementsService = {
   // Bulk delete advertisements
   bulkDelete: async (ids: number[]) => {
     const response = await api.post('/advertisements/bulk-delete', { ids })
+    return response.data
+  },
+
+  // Pause advertisement
+  pauseAdvertisement: async (id: number) => {
+    const response = await api.post(`/advertisements/${id}/pause`)
+    return response.data
+  },
+
+  // Resume advertisement
+  resumeAdvertisement: async (id: number) => {
+    const response = await api.post(`/advertisements/${id}/resume`)
+    return response.data
+  },
+
+  // Bulk pause all advertisements
+  bulkPauseAll: async () => {
+    const response = await api.post('/advertisements/bulk-pause-all')
+    return response.data
+  },
+
+  // Bulk resume all advertisements
+  bulkResumeAll: async () => {
+    const response = await api.post('/advertisements/bulk-resume-all')
     return response.data
   },
 }

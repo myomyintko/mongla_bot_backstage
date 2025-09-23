@@ -1,6 +1,8 @@
 import { MultiMediaUploader } from '@/components/multi-media-uploader'
 import { InfiniteSearchableSelect } from '@/components/infinite-searchable-select'
 import { SelectDropdown } from '@/components/select-dropdown'
+import { SocialButtonsField } from '@/components/form/social-buttons-field'
+import { TelegramEditor } from '@/components/telegram-editor'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -22,12 +24,10 @@ import {
 } from '@/components/ui/sheet'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
-import MDEditor from '@uiw/react-md-editor'
 import { useForm } from 'react-hook-form'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { useTheme } from '@/context/theme-provider'
 import { statuses, frequencyOptions } from '../data/data'
 import { Advertisement } from '../data/schema'
 import { advertisementsService } from '@/services/advertisements-service'
@@ -50,6 +50,26 @@ const formSchema = z.object({
   start_date: z.string().min(1, 'Start date is required.'),
   end_date: z.string().min(1, 'End date is required.'),
   frequency_cap_minutes: z.string().min(1, 'Please select frequency cap.'),
+  sub_btns: z.array(z.object({
+    id: z.string(),
+    platform: z.string(),
+    label: z.string().nullable().optional(),
+    url: z.string().nullable().optional()
+  })).optional().refine(
+    (subBtns) => {
+      if (!subBtns || subBtns.length === 0) return true
+      // Check if any button has both label and url filled
+      return subBtns.every(btn => {
+        const hasLabel = btn.label && btn.label !== null && btn.label.trim() !== ''
+        const hasUrl = btn.url && btn.url !== null && btn.url.trim() !== ''
+        // Either both are empty/null (valid) or both are filled (valid)
+        return (!hasLabel && !hasUrl) || (hasLabel && hasUrl)
+      })
+    },
+    {
+      message: "Social media buttons must have both label and URL filled, or be left empty"
+    }
+  ),
 })
 type AdvertisementForm = z.infer<typeof formSchema>
 
@@ -59,7 +79,6 @@ export function AdvertisementsMutateDrawer({
   currentRow,
 }: AdvertisementsMutateDrawerProps) {
   const isUpdate = !!currentRow
-  const { resolvedTheme } = useTheme()
   const queryClient = useQueryClient()
   const [deletedFiles, setDeletedFiles] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
@@ -157,6 +176,7 @@ export function AdvertisementsMutateDrawer({
       start_date: '',
       end_date: '',
       frequency_cap_minutes: '',
+      sub_btns: [],
     },
   })
 
@@ -176,6 +196,10 @@ export function AdvertisementsMutateDrawer({
         start_date: currentRow.start_date ? new Date(currentRow.start_date).toISOString().slice(0, 16) : '',
         end_date: currentRow.end_date ? new Date(currentRow.end_date).toISOString().slice(0, 16) : '',
         frequency_cap_minutes: currentRow.frequency_cap_minutes ? String(currentRow.frequency_cap_minutes) : '',
+        sub_btns: (currentRow.sub_btns || []).filter(btn => 
+          btn.label && btn.label !== null && btn.label.trim() !== '' && 
+          btn.url && btn.url !== null && btn.url.trim() !== ''
+        ),
       } : {
         title: '',
         description: '',
@@ -185,6 +209,7 @@ export function AdvertisementsMutateDrawer({
         start_date: '',
         end_date: '',
         frequency_cap_minutes: '',
+        sub_btns: [],
       }
 
       form.reset(defaultValues)
@@ -194,16 +219,41 @@ export function AdvertisementsMutateDrawer({
   }, [open, currentRow, form])
 
   const createMutation = useMutation({
-    mutationFn: (data: AdvertisementForm) => advertisementsService.createAdvertisement({
-      title: data.title,
-      description: data.description,
-      status: Number(data.status),
-      store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : null,
-      media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
-      start_date: data.start_date ? new Date(data.start_date).toISOString() : undefined,
-      end_date: data.end_date ? new Date(data.end_date).toISOString() : undefined,
-      frequency_cap_minutes: data.frequency_cap_minutes ? Number(data.frequency_cap_minutes) : undefined,
-    }),
+    mutationFn: (data: AdvertisementForm) => {
+      const allSubBtns = data.sub_btns || []
+      const validSubBtns = allSubBtns
+        .filter(btn => {
+          const hasLabel = btn.label && btn.label !== null && btn.label.trim() !== ''
+          const hasUrl = btn.url && btn.url !== null && btn.url.trim() !== ''
+          return hasLabel && hasUrl
+        })
+        .map(btn => ({
+          id: btn.id,
+          platform: btn.platform,
+          label: btn.label?.trim() || '',
+          url: btn.url?.trim() || ''
+        }))
+      
+      console.log('Creating advertisement - Social media buttons filtering:', {
+        total: allSubBtns.length,
+        valid: validSubBtns.length,
+        filtered: allSubBtns.length - validSubBtns.length,
+        allButtons: allSubBtns,
+        validButtons: validSubBtns
+      })
+
+      return advertisementsService.createAdvertisement({
+        title: data.title,
+        description: data.description,
+        status: Number(data.status),
+        store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : null,
+        media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
+        start_date: data.start_date ? new Date(data.start_date).toISOString() : undefined,
+        end_date: data.end_date ? new Date(data.end_date).toISOString() : undefined,
+        frequency_cap_minutes: data.frequency_cap_minutes ? Number(data.frequency_cap_minutes) : undefined,
+        sub_btns: validSubBtns,
+      })
+    },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['advertisements'] })
       toast.success('Advertisement created successfully!')
@@ -218,16 +268,41 @@ export function AdvertisementsMutateDrawer({
   })
 
   const updateMutation = useMutation({
-    mutationFn: (data: AdvertisementForm) => advertisementsService.updateAdvertisement(currentRow!.id, {
-      title: data.title,
-      description: data.description,
-      status: Number(data.status),
-      store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : null,
-      media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
-      start_date: data.start_date ? new Date(data.start_date).toISOString() : undefined,
-      end_date: data.end_date ? new Date(data.end_date).toISOString() : undefined,
-      frequency_cap_minutes: data.frequency_cap_minutes ? Number(data.frequency_cap_minutes) : undefined,
-    }),
+    mutationFn: (data: AdvertisementForm) => {
+      const allSubBtns = data.sub_btns || []
+      const validSubBtns = allSubBtns
+        .filter(btn => {
+          const hasLabel = btn.label && btn.label !== null && btn.label.trim() !== ''
+          const hasUrl = btn.url && btn.url !== null && btn.url.trim() !== ''
+          return hasLabel && hasUrl
+        })
+        .map(btn => ({
+          id: btn.id,
+          platform: btn.platform,
+          label: btn.label?.trim() || '',
+          url: btn.url?.trim() || ''
+        }))
+      
+      console.log('Updating advertisement - Social media buttons filtering:', {
+        total: allSubBtns.length,
+        valid: validSubBtns.length,
+        filtered: allSubBtns.length - validSubBtns.length,
+        allButtons: allSubBtns,
+        validButtons: validSubBtns
+      })
+
+      return advertisementsService.updateAdvertisement(currentRow!.id, {
+        title: data.title,
+        description: data.description,
+        status: Number(data.status),
+        store_id: data.store_id && data.store_id !== 'none' ? Number(data.store_id) : null,
+        media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
+        start_date: data.start_date ? new Date(data.start_date).toISOString() : undefined,
+        end_date: data.end_date ? new Date(data.end_date).toISOString() : undefined,
+        frequency_cap_minutes: data.frequency_cap_minutes ? Number(data.frequency_cap_minutes) : undefined,
+        sub_btns: validSubBtns,
+      })
+    },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['advertisements'] })
       toast.success('Advertisement updated successfully!')
@@ -243,6 +318,7 @@ export function AdvertisementsMutateDrawer({
   })
 
   const onSubmit = (data: AdvertisementForm) => {
+    console.log('Form submitted with data:', data)
     if (isUpdate) {
       updateMutation.mutate(data)
     } else {
@@ -261,7 +337,7 @@ export function AdvertisementsMutateDrawer({
         onOpenChange(v)
       }}
     >
-      <SheetContent className='flex flex-col'>
+      <SheetContent className='flex flex-col w-full sm:w-3/4 sm:max-w-2xl'>
         <SheetHeader className='text-start'>
           <SheetTitle>{isUpdate ? 'Update' : 'Create'} Advertisement</SheetTitle>
           <SheetDescription>
@@ -299,13 +375,11 @@ export function AdvertisementsMutateDrawer({
                   <FormLabel>Description <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <div className="mt-2">
-                      <MDEditor
+                      <TelegramEditor
                         value={field.value || ''}
-                        onChange={(value) => field.onChange(value || '')}
-                        data-color-mode={resolvedTheme}
-                        height={300}
-                        preview="edit"
-                        hideToolbar={false}
+                        onChange={field.onChange}
+                        placeholder="Enter advertisement description..."
+                        height={200}
                       />
                     </div>
                   </FormControl>
@@ -447,6 +521,12 @@ export function AdvertisementsMutateDrawer({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            {/* Social Media Buttons */}
+            <SocialButtonsField
+              name="sub_btns"
+              label="Social Media Buttons"
             />
           </form>
         </Form>

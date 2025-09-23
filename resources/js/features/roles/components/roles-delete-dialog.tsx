@@ -74,7 +74,7 @@ export function RolesDeleteDialog({ open, onClose, role }: RolesDeleteDialogProp
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Delete Role'}
             </AlertDialogAction>

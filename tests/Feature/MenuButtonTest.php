@@ -2,9 +2,15 @@
 
 use App\Models\MenuButton;
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
+
+beforeEach(function () {
+    $this->seed(RolePermissionSeeder::class);
+});
 
 test('can get menu buttons list', function () {
     $user = User::factory()->create();
+    $user->givePermissionTo(['menu-buttons.view']);
     $token = $user->createToken('test-token')->plainTextToken;
 
     // Create some test menu buttons
@@ -36,6 +42,7 @@ test('can get menu buttons list', function () {
 
 test('can create menu button', function () {
     $user = User::factory()->create();
+    $user->givePermissionTo(['menu-buttons.view', 'menu-buttons.create']);
     $token = $user->createToken('test-token')->plainTextToken;
 
     $menuButtonData = [
@@ -44,6 +51,7 @@ test('can create menu button', function () {
         'sort' => 1,
         'enable_template' => true,
         'template_content' => 'Test template content',
+        'button_type' => 'store',
     ];
 
     $response = $this->withHeaders([
@@ -67,6 +75,7 @@ test('can create menu button', function () {
 
 test('can update menu button', function () {
     $user = User::factory()->create();
+    $user->givePermissionTo(['menu-buttons.view', 'menu-buttons.edit']);
     $token = $user->createToken('test-token')->plainTextToken;
 
     $menuButton = MenuButton::factory()->create([
@@ -77,6 +86,7 @@ test('can update menu button', function () {
     $updateData = [
         'name' => 'Updated Name',
         'status' => 0,
+        'button_type' => 'store',
     ];
 
     $response = $this->withHeaders([
@@ -98,6 +108,7 @@ test('can update menu button', function () {
 
 test('can delete menu button', function () {
     $user = User::factory()->create();
+    $user->givePermissionTo(['menu-buttons.view', 'menu-buttons.delete']);
     $token = $user->createToken('test-token')->plainTextToken;
 
     $menuButton = MenuButton::factory()->create();
@@ -116,6 +127,7 @@ test('can delete menu button', function () {
 
 test('can get menu button hierarchy', function () {
     $user = User::factory()->create();
+    $user->givePermissionTo(['menu-buttons.view']);
     $token = $user->createToken('test-token')->plainTextToken;
 
     // Create a parent menu button

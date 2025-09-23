@@ -42,6 +42,7 @@ export function SetupPasswordForm({ className, redirect, ...props }: SetupPasswo
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    mode: 'onChange',
     defaultValues: {
       password: '',
       password_confirmation: '',

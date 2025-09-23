@@ -7,7 +7,6 @@ namespace Database\Seeders;
 use App\Models\Store;
 use App\Models\MenuButton;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class StoreSeeder extends Seeder
 {
@@ -18,271 +17,197 @@ class StoreSeeder extends Seeder
     {
         $this->command->info('🌱 Seeding stores...');
 
-        // Get menu buttons to associate with stores
-        $menuButtons = $this->getMenuButtons();
+        // Clear existing stores
+        Store::query()->delete();
 
-        // Create sample stores
-        $this->createSampleStores($menuButtons);
+        // Reset the factory's name counter
+        \Database\Factories\StoreFactory::resetNameCounter();
 
-        // Create additional stores using factory
-        $this->createFactoryStores($menuButtons);
+        // Get all menu buttons (both main and subcategories)
+        $menuButtons = $this->getAllMenuButtons();
+
+        // Create stores for each menu button
+        $this->createStoresForMenuButtons($menuButtons);
 
         $totalStores = Store::count();
         $this->command->info("✅ Stores seeded successfully! Total: {$totalStores} stores");
     }
 
     /**
-     * Get menu buttons for store association.
+     * Get all menu buttons (main and subcategories) for store association.
      */
-    private function getMenuButtons(): array
+    private function getAllMenuButtons(): array
     {
-        return [
-            'food' => MenuButton::where('name', 'like', '%Food%')->whereNull('parent_id')->first(),
-            'shopping' => MenuButton::where('name', 'like', '%Shopping%')->whereNull('parent_id')->first(),
-            'entertainment' => MenuButton::where('name', 'like', '%Entertainment%')->whereNull('parent_id')->first(),
-            'beauty' => MenuButton::where('name', 'like', '%Beauty%')->whereNull('parent_id')->first(),
-            'car' => MenuButton::where('name', 'like', '%Car%')->whereNull('parent_id')->first(),
-        ];
-    }
-
-    /**
-     * Create sample stores with predefined data.
-     */
-    private function createSampleStores(array $menuButtons): void
-    {
-        $stores = $this->getSampleStoreData($menuButtons);
-        $storeData = [];
-
-        foreach ($stores as $store) {
-            $storeData[] = array_merge($store, [
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-
-        // Batch insert stores
-        DB::table('stores')->insert($storeData);
-
-        $this->command->info('   🏪 Created ' . count($stores) . ' sample stores');
-    }
-
-    /**
-     * Create additional stores using factory.
-     */
-    private function createFactoryStores(array $menuButtons): void
-    {
-        $factoryCount = 20;
+        $menuButtons = [];
         
-        // Create stores with different categories
-        $categories = ['food', 'shopping', 'services'];
-        $storesPerCategory = intval($factoryCount / count($categories));
-
-        foreach ($categories as $category) {
-            $menuButton = $menuButtons[$category] ?? null;
+        // Get all main menu buttons
+        $mainMenuButtons = MenuButton::whereNull('parent_id')->get();
+        
+        foreach ($mainMenuButtons as $mainButton) {
+            $menuButtons[$mainButton->name] = $mainButton;
             
-            Store::factory()
-                ->count($storesPerCategory)
-                ->active()
-                ->when($menuButton, fn($factory) => $factory->forMenuButton($menuButton))
-                ->create();
+            // Get subcategories for this main button
+            $subButtons = MenuButton::where('parent_id', $mainButton->id)->get();
+            foreach ($subButtons as $subButton) {
+                $menuButtons[$subButton->name] = $subButton;
+            }
         }
-
-        // Create remaining stores
-        $remaining = $factoryCount - ($storesPerCategory * count($categories));
-        if ($remaining > 0) {
-            Store::factory()
-                ->count($remaining)
-                ->active()
-                ->create();
-        }
-
-        $this->command->info("   🏭 Created {$factoryCount} factory-generated stores");
+        
+        return $menuButtons;
     }
 
     /**
-     * Get sample store data.
+     * Create stores for each menu button using factory.
      */
-    private function getSampleStoreData(array $menuButtons): array
+    private function createStoresForMenuButtons(array $menuButtons): void
+    {
+        $totalStores = 0;
+        
+        foreach ($menuButtons as $menuButtonName => $menuButton) {
+            $storeCount = $this->getStoreCountForMenuButton($menuButtonName);
+            
+            if ($storeCount > 0) {
+                $this->createStoresForMenuButton($menuButtonName, $menuButton, $storeCount);
+                $totalStores += $storeCount;
+            }
+        }
+
+        $this->command->info("   🏪 Created {$totalStores} stores across all categories");
+    }
+
+    /**
+     * Get store count for a specific menu button.
+     */
+    private function getStoreCountForMenuButton(string $menuButtonName): int
+    {
+        $storeCounts = $this->getStoreCounts();
+        return $storeCounts[$menuButtonName] ?? 0;
+    }
+
+    /**
+     * Create stores for a specific menu button using factory.
+     */
+    private function createStoresForMenuButton(string $menuButtonName, MenuButton $menuButton, int $count): void
+    {
+        // Create stores one by one to avoid static counter issues with count()
+        for ($i = 0; $i < $count; $i++) {
+            $factory = Store::factory()
+                ->active()
+                ->forMenuButton($menuButton);
+
+            // Apply specific factory methods based on menu button type
+            $factory = $this->applyFactoryMethod($factory, $menuButtonName);
+
+            $factory->create();
+        }
+
+        $this->command->info("   📍 Created {$count} stores for {$menuButtonName}");
+    }
+
+    /**
+     * Get store counts for each menu button.
+     */
+    private function getStoreCounts(): array
     {
         return [
-            // Food stores
-            [
-                'name' => '🍔 Golden Dragon Restaurant',
-                'description' => 'Authentic Chinese cuisine with a modern twist. Specializing in dim sum, hot pot, and traditional dishes.',
-                'open_hour' => '10:00',
-                'close_hour' => '22:00',
-                'status' => 1,
-                'address' => '123 Main Street, Downtown',
-                'recommand' => true,
-                'menu_button_id' => $menuButtons['food']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
-            [
-                'name' => '🍲 Spicy Hot Pot House',
-                'description' => 'Experience the authentic Sichuan hot pot with fresh ingredients and traditional broth.',
-                'open_hour' => '11:00',
-                'close_hour' => '23:00',
-                'status' => 1,
-                'address' => '456 Food Court, Mall District',
-                'recommand' => true,
-                'menu_button_id' => $menuButtons['food']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
-            [
-                'name' => '🧋 Bubble Tea Paradise',
-                'description' => 'Fresh bubble tea with premium ingredients. Over 50 flavors to choose from.',
-                'open_hour' => '09:00',
-                'close_hour' => '21:00',
-                'status' => 1,
-                'address' => '789 Student Street, University Area',
-                'recommand' => false,
-                'menu_button_id' => $menuButtons['food']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
-            [
-                'name' => '🍜 Noodle Master',
-                'description' => 'Handmade noodles with rich broth and fresh vegetables. A local favorite.',
-                'open_hour' => '08:00',
-                'close_hour' => '20:00',
-                'status' => 1,
-                'address' => '321 Old Town, Historic District',
-                'recommand' => false,
-                'menu_button_id' => $menuButtons['food']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
+            // Main categories - more stores for better pagination testing
+            '🍽️ Food' => 2,
+            '🛍️ Shopping' => 12,
+            '🥳 Entertainment' => 8,
+            '💆‍♀️ Beauty Salon' => 6,
+            '🚗 Car Services' => 5,
+            '🏨 Hotels' => 3,
+            '💵 Currency Exchange' => 2,
+            '🏡 Rental' => 4,
+            '🏥 Hospitals' => 2,
+            '📦 Express Delivery' => 3,
 
-            // Shopping stores
-            [
-                'name' => '🛒 Mega Supermarket',
-                'description' => 'One-stop shopping for all your daily needs. Fresh produce, household items, and more.',
-                'open_hour' => '07:00',
-                'close_hour' => '22:00',
-                'status' => 1,
-                'address' => '555 Commercial Plaza, Business District',
-                'recommand' => true,
-                'menu_button_id' => $menuButtons['shopping']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
-            [
-                'name' => '📱 Tech World Electronics',
-                'description' => 'Latest smartphones, laptops, and gadgets. Authorized dealer with warranty.',
-                'open_hour' => '10:00',
-                'close_hour' => '21:00',
-                'status' => 1,
-                'address' => '777 Tech Hub, Innovation Center',
-                'recommand' => true,
-                'menu_button_id' => $menuButtons['shopping']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
-            [
-                'name' => '💄 Beauty Plus Cosmetics',
-                'description' => 'Premium cosmetics and skincare products from international brands.',
-                'open_hour' => '09:00',
-                'close_hour' => '20:00',
-                'status' => 1,
-                'address' => '999 Fashion Mall, Style District',
-                'recommand' => false,
-                'menu_button_id' => $menuButtons['shopping']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
+            // Food subcategories
+            '🍔 Restaurant' => 2,
+            '🍲 Hot Pot' => 2,
+            '🍡 Barbecue' => 1,
+            '🧋 Milk Tea' => 1,
+            '🍩 Snacks' => 1,
+            '🍜 Noodles' => 1,
+            '🍉 Fruits' => 1,
+            '🦀 Seafood' => 1,
+            '🍲 Rice Noodles' => 1,
 
-            // Entertainment stores
-            [
-                'name' => '🕺🕺 Club Neon',
-                'description' => 'Premier nightclub with live DJs, premium drinks, and VIP service.',
-                'open_hour' => '20:00',
-                'close_hour' => '04:00',
-                'status' => 1,
-                'address' => '111 Nightlife Street, Entertainment District',
-                'recommand' => true,
-                'menu_button_id' => $menuButtons['entertainment']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
-            [
-                'name' => '🍺 The Local Pub',
-                'description' => 'Cozy pub with craft beers, live music, and traditional pub food.',
-                'open_hour' => '16:00',
-                'close_hour' => '01:00',
-                'status' => 1,
-                'address' => '222 Heritage Lane, Old Quarter',
-                'recommand' => false,
-                'menu_button_id' => $menuButtons['entertainment']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
+            // Shopping subcategories
+            '🛒 Supermarket' => 4,
+            '🧥 Clothing' => 6,
+            '🎀 Accessories' => 5,
+            '🚛 Proxy Shopping' => 3,
+            '📱 Electronics' => 7,
+            '💄 Cosmetics' => 4,
+            '🧺 Laundry' => 3,
+            '🏬 Local Shops' => 5,
+            '🔞 Adult Products' => 2,
 
-            // Beauty services
-            [
-                'name' => '💇‍♂️ Style Studio Hair Salon',
-                'description' => 'Professional hair styling, coloring, and treatments by experienced stylists.',
-                'open_hour' => '09:00',
-                'close_hour' => '19:00',
-                'status' => 1,
-                'address' => '333 Beauty Avenue, Style District',
-                'recommand' => true,
-                'menu_button_id' => $menuButtons['beauty']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
-            [
-                'name' => '💅 Nail Art Studio',
-                'description' => 'Creative nail art, manicures, pedicures, and nail extensions.',
-                'open_hour' => '10:00',
-                'close_hour' => '20:00',
-                'status' => 1,
-                'address' => '444 Wellness Center, Health Plaza',
-                'recommand' => false,
-                'menu_button_id' => $menuButtons['beauty']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
+            // Entertainment subcategories
+            '🕺🕺 Club' => 4,
+            '🍺 Bar/KTV' => 6,
+            '🧖‍♂️ Massage' => 3,
+            '🧘‍♀️ Wellness' => 4,
 
-            // Car services
-            [
-                'name' => '🛞 AutoCare Service Center',
-                'description' => 'Complete car maintenance, repairs, and diagnostics. Certified mechanics.',
-                'open_hour' => '08:00',
-                'close_hour' => '18:00',
-                'status' => 1,
-                'address' => '555 Industrial Road, Service District',
-                'recommand' => true,
-                'menu_button_id' => $menuButtons['car']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
-            [
-                'name' => '🚙 Premium Car Dealership',
-                'description' => 'New and used cars, financing options, and after-sales service.',
-                'open_hour' => '09:00',
-                'close_hour' => '19:00',
-                'status' => 1,
-                'address' => '666 Auto Mall, Vehicle District',
-                'recommand' => false,
-                'menu_button_id' => $menuButtons['car']?->id,
-                'media_url' => null,
-                'menu_urls' => null,
-                'sub_btns' => null,
-            ],
+            // Beauty Salon subcategories
+            '💇‍♂️ Hair' => 5,
+            '💅 Nails & Beauty' => 4,
+            '💉 Medical Beauty' => 2,
+            '🕸️ Tattoo' => 3,
+
+            // Car Services subcategories
+            '🛞 Car Repair' => 4,
+            '🚙 Buy & Sell Cars' => 3,
+
+            // Express Delivery subcategories
+            '🎁 Asia Express' => 2,
+            '🏃‍♂️ Errand Services' => 3,
         ];
     }
+
+    /**
+     * Apply specific factory method based on menu button type.
+     */
+    private function applyFactoryMethod($factory, string $menuButtonName)
+    {
+        // Food-related categories
+        if (str_contains($menuButtonName, 'Food') || str_contains($menuButtonName, 'Restaurant') || 
+            str_contains($menuButtonName, 'Hot Pot') || str_contains($menuButtonName, 'Barbecue') ||
+            str_contains($menuButtonName, 'Milk Tea') || str_contains($menuButtonName, 'Snacks') ||
+            str_contains($menuButtonName, 'Noodles') || str_contains($menuButtonName, 'Fruits') ||
+            str_contains($menuButtonName, 'Seafood') || str_contains($menuButtonName, 'Rice Noodles')) {
+            
+            return $factory->foodStore();
+        }
+
+        // Shopping-related categories
+        if (str_contains($menuButtonName, 'Shopping') || str_contains($menuButtonName, 'Supermarket') ||
+            str_contains($menuButtonName, 'Clothing') || str_contains($menuButtonName, 'Accessories') ||
+            str_contains($menuButtonName, 'Proxy Shopping') || str_contains($menuButtonName, 'Electronics') ||
+            str_contains($menuButtonName, 'Cosmetics') || str_contains($menuButtonName, 'Laundry') ||
+            str_contains($menuButtonName, 'Local Shops') || str_contains($menuButtonName, 'Adult Products')) {
+            
+            return $factory->shoppingStore();
+        }
+
+        // Service-related categories (Entertainment, Beauty, Car Services, etc.)
+        if (str_contains($menuButtonName, 'Entertainment') || str_contains($menuButtonName, 'Club') ||
+            str_contains($menuButtonName, 'Bar/KTV') || str_contains($menuButtonName, 'Massage') ||
+            str_contains($menuButtonName, 'Wellness') || str_contains($menuButtonName, 'Beauty Salon') ||
+            str_contains($menuButtonName, 'Hair') || str_contains($menuButtonName, 'Nails') ||
+            str_contains($menuButtonName, 'Medical Beauty') || str_contains($menuButtonName, 'Tattoo') ||
+            str_contains($menuButtonName, 'Car Services') || str_contains($menuButtonName, 'Car Repair') ||
+            str_contains($menuButtonName, 'Buy & Sell Cars') || str_contains($menuButtonName, 'Hotels') ||
+            str_contains($menuButtonName, 'Currency Exchange') || str_contains($menuButtonName, 'Rental') ||
+            str_contains($menuButtonName, 'Hospitals') || str_contains($menuButtonName, 'Express Delivery') ||
+            str_contains($menuButtonName, 'Asia Express') || str_contains($menuButtonName, 'Errand Services')) {
+            
+            return $factory->serviceStore();
+        }
+
+        // Default to general store
+        return $factory;
+    }
+
 }

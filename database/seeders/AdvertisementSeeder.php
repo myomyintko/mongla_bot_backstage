@@ -34,12 +34,12 @@ class AdvertisementSeeder extends Seeder
     private function createRunningAdvertisements(): void
     {
         Advertisement::factory()
-            ->count(5)
+            ->count(2)
             ->active()
             ->running()
             ->create();
 
-        $this->command->info('   🏃 Created 5 running advertisements');
+        $this->command->info('   🏃 Created 2 running advertisements');
     }
 
     /**
@@ -48,11 +48,11 @@ class AdvertisementSeeder extends Seeder
     private function createScheduledAdvertisements(): void
     {
         Advertisement::factory()
-            ->count(3)
+            ->count(2)
             ->scheduled()
             ->create();
 
-        $this->command->info('   📅 Created 3 scheduled advertisements');
+        $this->command->info('   📅 Created 2 scheduled advertisements');
     }
 
     /**
@@ -87,11 +87,11 @@ class AdvertisementSeeder extends Seeder
     private function createStoreSpecificAdvertisements(): void
     {
         // Create advertisements without stores
-        Advertisement::factory()
-            ->count(3)
-            ->withoutStore()
-            ->active()
-            ->create();
+        // Advertisement::factory()
+        //     ->count(3)
+        //     ->withoutStore()
+        //     ->active()
+        //     ->create();
 
         // Create advertisements for specific stores
         $stores = Store::take(3)->get();
@@ -108,6 +108,6 @@ class AdvertisementSeeder extends Seeder
             $storeAdCount += 2;
         }
 
-        $this->command->info("   🏪 Created 3 store-independent and {$storeAdCount} store-specific advertisements");
+        $this->command->info("   🏪 Created 2 store-independent and {$storeAdCount} store-specific advertisements");
     }
 }

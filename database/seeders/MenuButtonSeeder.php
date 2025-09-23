@@ -16,10 +16,8 @@ class MenuButtonSeeder extends Seeder
     {
         $this->command->info('🌱 Seeding menu buttons...');
 
-        // Only clear if we're doing a fresh seed (not in production)
-        if (app()->environment('local', 'testing')) {
-            MenuButton::truncate();
-        }
+        // Skip truncation due to foreign key constraints
+        // Using updateOrCreate below will handle duplicates
 
         $menus = $this->getMenuData();
         $createdMenus = [];
@@ -34,7 +32,7 @@ class MenuButtonSeeder extends Seeder
                     'button_type' => 'store',
                     'sort' => $menu['sort'],
                     'status' => 1,
-                    'enable_template' => true,
+                    'enable_template' => false,
                     'template_content' => 'Welcome to ' . $menu['label'] . ' services! Please select an option below.',
                 ]
             );

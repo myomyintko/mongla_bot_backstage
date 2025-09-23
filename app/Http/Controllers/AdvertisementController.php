@@ -5,47 +5,29 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Advertisement;
+use App\Services\Advertisement\AdvertisementServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class AdvertisementController extends Controller
 {
+    public function __construct(
+        private AdvertisementServiceInterface $advertisementService
+    ) {}
     /**
      * Display a listing of advertisements
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Advertisement::with(['store']);
+        $filters = [
+            'status' => $request->get('status'),
+            'store_id' => $request->get('store_id'),
+            'search' => $request->get('search'),
+        ];
 
-        // Filter by status if provided
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by store_id if provided
-        if ($request->has('store_id')) {
-            if ($request->store_id === 'null' || $request->store_id === 'none') {
-                $query->whereNull('store_id');
-            } elseif ($request->store_id !== 'all') {
-                $query->where('store_id', $request->store_id);
-            }
-            // If 'all', don't apply any filter (show all advertisements)
-        }
-
-        // Search by title or description
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', '%' . $search . '%')
-                  ->orWhere('description', 'like', '%' . $search . '%');
-            });
-        }
-
-        // Sort by created_at
-        $query->orderBy('created_at', 'desc');
-
-        $advertisements = $query->paginate($request->get('per_page', 15));
+        $perPage = (int) $request->get('per_page', 15);
+        $advertisements = $this->advertisementService->getPaginated($filters, $perPage);
 
         return response()->json($advertisements);
     }
@@ -64,13 +46,10 @@ class AdvertisementController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'frequency_cap_minutes' => 'nullable|integer|min:1',
+            'sub_btns' => 'nullable|array',
         ]);
 
-        // Set default values
-        $validated['status'] = $validated['status'] ?? 1;
-
-        $advertisement = Advertisement::create($validated);
-        $advertisement->load(['store']);
+        $advertisement = $this->advertisementService->create($validated);
 
         return response()->json($advertisement, 201);
     }
@@ -80,7 +59,6 @@ class AdvertisementController extends Controller
      */
     public function show(Advertisement $advertisement): JsonResponse
     {
-        $advertisement->load(['store']);
         return response()->json($advertisement);
     }
 
@@ -98,10 +76,10 @@ class AdvertisementController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'frequency_cap_minutes' => 'nullable|integer|min:1',
+            'sub_btns' => 'nullable|array',
         ]);
 
-        $advertisement->update($validated);
-        $advertisement->load(['store']);
+        $advertisement = $this->advertisementService->update($advertisement, $validated);
 
         return response()->json($advertisement);
     }
@@ -111,7 +89,7 @@ class AdvertisementController extends Controller
      */
     public function destroy(Advertisement $advertisement): JsonResponse
     {
-        $advertisement->delete();
+        $this->advertisementService->delete($advertisement);
         return response()->json(['message' => 'Advertisement deleted successfully']);
     }
 
@@ -127,13 +105,9 @@ class AdvertisementController extends Controller
             'updates.status' => 'nullable|integer|in:0,1',
         ]);
 
-        $updated = Advertisement::whereIn('id', $validated['ids'])
-            ->update($validated['updates']);
+        $result = $this->advertisementService->bulkUpdate($validated['ids'], $validated['updates']);
 
-        return response()->json([
-            'message' => "Successfully updated {$updated} advertisements",
-            'updated_count' => $updated
-        ]);
+        return response()->json($result);
     }
 
     /**
@@ -146,11 +120,115 @@ class AdvertisementController extends Controller
             'ids.*' => 'integer|exists:advertisements,id',
         ]);
 
-        $deleted = Advertisement::whereIn('id', $validated['ids'])->delete();
+        $result = $this->advertisementService->bulkDelete($validated['ids']);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Pause a specific advertisement
+     */
+    public function pause(Advertisement $advertisement): JsonResponse
+    {
+        if ($advertisement->status !== 1) {
+            return response()->json([
+                'message' => 'Advertisement is not currently active'
+            ], 400);
+        }
+
+        $updatedAdvertisement = $this->advertisementService->update($advertisement, [
+            'status' => 0
+        ]);
 
         return response()->json([
-            'message' => "Successfully deleted {$deleted} advertisements",
-            'updated_count' => $deleted
+            'message' => 'Advertisement paused successfully',
+            'advertisement' => $updatedAdvertisement
         ]);
+    }
+
+    /**
+     * Resume a specific advertisement
+     */
+    public function resume(Advertisement $advertisement): JsonResponse
+    {
+        if ($advertisement->status !== 0) {
+            return response()->json([
+                'message' => 'Advertisement is not currently paused'
+            ], 400);
+        }
+
+        // Check if advertisement has expired
+        if ($advertisement->end_date && now()->gt($advertisement->end_date)) {
+            return response()->json([
+                'message' => 'Cannot resume expired advertisement'
+            ], 400);
+        }
+
+        $updatedAdvertisement = $this->advertisementService->update($advertisement, [
+            'status' => 1
+        ]);
+
+        return response()->json([
+            'message' => 'Advertisement resumed successfully',
+            'advertisement' => $updatedAdvertisement
+        ]);
+    }
+
+    /**
+     * Bulk pause all active advertisements
+     */
+    public function bulkPauseAll(): JsonResponse
+    {
+        try {
+            $activeAds = Advertisement::where('status', 1)->get();
+            $pausedCount = 0;
+
+            foreach ($activeAds as $advertisement) {
+                $this->advertisementService->update($advertisement, ['status' => 0]);
+                $pausedCount++;
+            }
+
+            return response()->json([
+                'message' => "Successfully paused {$pausedCount} advertisements",
+                'paused_count' => $pausedCount
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to pause advertisements: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk resume all inactive advertisements (excluding expired ones)
+     */
+    public function bulkResumeAll(): JsonResponse
+    {
+        try {
+            $inactiveAds = Advertisement::where('status', 0)
+                ->where(function($query) {
+                    $query->whereNull('end_date')
+                          ->orWhere('end_date', '>', now());
+                })
+                ->get();
+
+            $resumedCount = 0;
+
+            foreach ($inactiveAds as $advertisement) {
+                $this->advertisementService->update($advertisement, ['status' => 1]);
+                $resumedCount++;
+            }
+
+            return response()->json([
+                'message' => "Successfully resumed {$resumedCount} advertisements",
+                'resumed_count' => $resumedCount
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to resume advertisements: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './theme.css';
-@import '@uiw/react-md-editor/markdown-editor.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -87,50 +86,6 @@
   }
 }
 
-/* MD Editor custom styles */
-.w-md-editor {
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) - 2px);
-}
-
-.w-md-editor.w-md-editor-focus {
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
-}
-
-.w-md-editor-text-pre,
-.w-md-editor-text-input {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.w-md-editor-text-pre {
-  color: hsl(var(--muted-foreground));
-}
-
-.w-md-editor-text-input {
-  color: hsl(var(--foreground));
-}
-
-.w-md-editor-toolbar {
-  background-color: hsl(var(--muted) / 0.5);
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.w-md-editor-toolbar button {
-  color: hsl(var(--muted-foreground));
-}
-
-.w-md-editor-toolbar button:hover {
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
-}
-
-.w-md-editor-toolbar button.active {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
-}
 
 /* Glow effect animation for image deletion */
 @keyframes glow-effect {

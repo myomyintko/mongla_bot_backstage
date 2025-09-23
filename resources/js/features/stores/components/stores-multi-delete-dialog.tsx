@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { type Table } from '@tanstack/react-table'
 import { AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { sleep } from '@/lib/utils'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { storesService } from '@/services/stores-service'
+import { type Store } from '../data/schema'
 
 type StoresMultiDeleteDialogProps<TData> = {
   open: boolean
@@ -24,8 +26,28 @@ export function StoresMultiDeleteDialog<TData>({
   table,
 }: StoresMultiDeleteDialogProps<TData>) {
   const [value, setValue] = useState('')
+  const queryClient = useQueryClient()
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      return storesService.bulkDelete(ids)
+    },
+    onSuccess: () => {
+      toast.success(`Deleted ${selectedRows.length} ${
+        selectedRows.length > 1 ? 'stores' : 'store'
+      }`)
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+      table.resetRowSelection()
+      setValue('')
+      onOpenChange(false)
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to delete stores'
+      toast.error(message)
+    },
+  })
 
   const handleDelete = () => {
     if (value.trim() !== CONFIRM_WORD) {
@@ -33,18 +55,9 @@ export function StoresMultiDeleteDialog<TData>({
       return
     }
 
-    onOpenChange(false)
-
-    toast.promise(sleep(2000), {
-      loading: 'Deleting stores...',
-      success: () => {
-        table.resetRowSelection()
-        return `Deleted ${selectedRows.length} ${
-          selectedRows.length > 1 ? 'stores' : 'store'
-        }`
-      },
-      error: 'Error',
-    })
+    const selectedStores = selectedRows.map((row) => row.original as Store)
+    const ids = selectedStores.map(item => item.id)
+    bulkDeleteMutation.mutate(ids)
   }
 
   return (
@@ -52,7 +65,7 @@ export function StoresMultiDeleteDialog<TData>({
       open={open}
       onOpenChange={onOpenChange}
       handleConfirm={handleDelete}
-      disabled={value.trim() !== CONFIRM_WORD}
+      disabled={value.trim() !== CONFIRM_WORD || bulkDeleteMutation.isPending}
       title={
         <span className='text-destructive'>
           <AlertTriangle

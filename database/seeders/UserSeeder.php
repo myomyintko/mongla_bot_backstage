@@ -37,7 +37,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('Qwer@001122'),
                 'email_verified_at' => now(),
                 'status' => User::STATUS_ACTIVE,
-                'password_setup_required' => true, // All users need to setup password
+                'password_setup_required' => false, // All users need to setup password
             ],
             [
                 'email' => 'admin@monglabot.com',
@@ -46,7 +46,7 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('Qwer@001122'),
                 'email_verified_at' => now(),
                 'status' => User::STATUS_ACTIVE,
-                'password_setup_required' => true, // All users need to setup password
+                'password_setup_required' => false, // All users need to setup password
             ],
         ];
 

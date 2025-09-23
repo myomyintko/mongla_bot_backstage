@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { type Table } from '@tanstack/react-table'
-import { Trash2, CircleArrowUp, Download } from 'lucide-react'
+import { Trash2, CircleArrowUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { sleep } from '@/lib/utils'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ import { CanEdit, CanDelete } from '@/components/permission/permission-gate'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
 import { statuses } from '../data/data'
 import { type MenuButton } from '../data/schema'
+import { menuButtonsService } from '@/services/menu-buttons-service'
 import { MenuButtonsMultiDeleteDialog } from './menu-buttons-multi-delete-dialog'
 
 type DataTableBulkActionsProps<TData> = {
@@ -30,32 +31,33 @@ export function DataTableBulkActions<TData>({
 }: DataTableBulkActionsProps<TData>) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const selectedRows = table.getFilteredSelectedRowModel().rows
+  const queryClient = useQueryClient()
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: number[], status: string }) => {
+      const statusValue = statuses.find(s => s.value === status)?.value || status
+      return menuButtonsService.bulkUpdate({
+        ids,
+        updates: { status: parseInt(statusValue) }
+      })
+    },
+    onSuccess: (_, { status }) => {
+      toast.success(`Status updated to "${status}" for ${selectedRows.length} menu button${selectedRows.length > 1 ? 's' : ''}.`)
+      queryClient.invalidateQueries({ queryKey: ['menu-buttons'] })
+      table.resetRowSelection()
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.message || 'Failed to update status'
+      toast.error(message)
+    },
+  })
 
   const handleBulkStatusChange = (status: string) => {
-    const selectedTasks = selectedRows.map((row) => row.original as MenuButton)
-    toast.promise(sleep(2000), {
-      loading: 'Updating status...',
-      success: () => {
-        table.resetRowSelection()
-        return `Status updated to "${status}" for ${selectedTasks.length} task${selectedTasks.length > 1 ? 's' : ''}.`
-      },
-      error: 'Error',
-    })
-    table.resetRowSelection()
+    const selectedMenuButtons = selectedRows.map((row) => row.original as MenuButton)
+    const ids = selectedMenuButtons.map(item => item.id)
+    bulkUpdateMutation.mutate({ ids, status })
   }
 
-  const handleBulkExport = () => {
-    const selectedTasks = selectedRows.map((row) => row.original as MenuButton)
-    toast.promise(sleep(2000), {
-      loading: 'Exporting tasks...',
-      success: () => {
-        table.resetRowSelection()
-        return `Exported ${selectedTasks.length} task${selectedTasks.length > 1 ? 's' : ''} to CSV.`
-      },
-      error: 'Error',
-    })
-    table.resetRowSelection()
-  }
 
   return (
     <>
@@ -71,6 +73,7 @@ export function DataTableBulkActions<TData>({
                   className='size-8'
                   aria-label='Update status'
                   title='Update status'
+                  disabled={bulkUpdateMutation.isPending}
                 >
                   <CircleArrowUp />
                   <span className='sr-only'>Update status</span>
@@ -87,6 +90,7 @@ export function DataTableBulkActions<TData>({
                 key={status.value}
                 defaultValue={status.value}
                 onClick={() => handleBulkStatusChange(status.value)}
+                disabled={bulkUpdateMutation.isPending}
               >
                 {status.label}
               </DropdownMenuItem>
@@ -94,25 +98,6 @@ export function DataTableBulkActions<TData>({
           </DropdownMenuContent>
           </DropdownMenu>
         </CanEdit>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant='outline'
-              size='icon'
-              onClick={() => handleBulkExport()}
-              className='size-8'
-              aria-label='Export tasks'
-              title='Export tasks'
-            >
-              <Download />
-              <span className='sr-only'>Export tasks</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Export tasks</p>
-          </TooltipContent>
-        </Tooltip>
 
         <CanDelete resource="menu-buttons">
           <Tooltip>

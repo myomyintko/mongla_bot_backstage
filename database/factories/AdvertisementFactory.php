@@ -99,7 +99,7 @@ class AdvertisementFactory extends Factory
             'media_url' => null,
             'start_date' => $startDate,
             'end_date' => $endDate,
-            'frequency_cap_minutes' => fake()->optional(0.7)->randomElement([15, 30, 60, 120, 240, 480, 720, 1440]),
+            'frequency_cap_minutes' => fake()->randomElement([1,3,15, 30, 60, 120, 240, 480, 720, 1440]),
         ];
     }
 

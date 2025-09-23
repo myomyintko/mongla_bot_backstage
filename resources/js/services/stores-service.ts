@@ -20,7 +20,12 @@ export interface StoreCreateData {
   status?: number
   address?: string | null 
   recommand?: boolean
-  sub_btns?: string[] | null
+  sub_btns?: Array<{
+    id: string
+    platform: string
+    label: string
+    url: string
+  }> | null
   menu_button_id?: number | null
 }
 

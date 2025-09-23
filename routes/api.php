@@ -3,7 +3,6 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\MediaController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\AdvertisementController;
 use App\Http\Controllers\PinMessageController;
@@ -12,6 +11,8 @@ use App\Http\Controllers\MediaLibraryController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TwoFactorController;
+use App\Http\Controllers\TelegraphBotController;
+use App\Http\Controllers\Admin\BotTemplateController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,13 +57,6 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::put('/password', [ProfileController::class, 'updatePassword']);
 });
 
-// Media upload routes
-Route::middleware(['auth:sanctum', 'permission:media.upload'])->prefix('media')->group(function () {
-    Route::post('/upload', [MediaController::class, 'upload']);
-    Route::delete('/delete', [MediaController::class, 'delete'])->middleware('permission:media.delete');
-    Route::get('/info', [MediaController::class, 'info'])->middleware('permission:media.view');
-});
-
 // Menu Buttons routes
 Route::middleware(['auth:sanctum', 'permission:menu-buttons.view'])->group(function () {
     Route::get('/menu-buttons', [\App\Http\Controllers\MenuButtonController::class, 'index']);
@@ -99,6 +93,10 @@ Route::middleware(['auth:sanctum', 'permission:advertisements.view'])->group(fun
     Route::delete('/advertisements/{advertisement}', [AdvertisementController::class, 'destroy'])->middleware('permission:advertisements.delete');
     Route::post('/advertisements/bulk-update', [AdvertisementController::class, 'bulkUpdate'])->middleware('permission:advertisements.edit');
     Route::post('/advertisements/bulk-delete', [AdvertisementController::class, 'bulkDelete'])->middleware('permission:advertisements.delete');
+    Route::post('/advertisements/{advertisement}/pause', [AdvertisementController::class, 'pause'])->middleware('permission:advertisements.edit');
+    Route::post('/advertisements/{advertisement}/resume', [AdvertisementController::class, 'resume'])->middleware('permission:advertisements.edit');
+    Route::post('/advertisements/bulk-pause-all', [AdvertisementController::class, 'bulkPauseAll'])->middleware('permission:advertisements.edit');
+    Route::post('/advertisements/bulk-resume-all', [AdvertisementController::class, 'bulkResumeAll'])->middleware('permission:advertisements.edit');
 });
 
 // Pin Messages routes
@@ -147,4 +145,30 @@ Route::middleware(['auth:sanctum', 'permission:roles.view'])->group(function () 
     Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:roles.create');
     Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('permission:roles.edit');
     Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:roles.delete');
+});
+
+// Telegraph Bot Management Routes (Single Bot Configuration)
+Route::middleware(['auth:sanctum', 'permission:telegraph.view'])->group(function () {
+    Route::get('/telegraph/bot', [TelegraphBotController::class, 'index']);
+    Route::get('/telegraph/bot/info', [TelegraphBotController::class, 'getBotInfo']);
+    Route::post('/telegraph/bot/register-webhook', [TelegraphBotController::class, 'registerWebhook']);
+    Route::post('/telegraph/bot/unregister-webhook', [TelegraphBotController::class, 'unregisterWebhook']);
+    Route::post('/telegraph/bot/send-test-message', [TelegraphBotController::class, 'sendTestMessage']);
+    
+    // Webhook Info Route (read-only from .env)
+    Route::get('/telegraph/bot/webhook-domain', [TelegraphBotController::class, 'getWebhookDomain']);
+    Route::get('/telegraph/bot/webhook-info', [TelegraphBotController::class, 'getWebhookInfo']);
+});
+
+// Bot Template Management Routes
+Route::middleware(['auth:sanctum', 'permission:bot-templates.view'])->group(function () {
+    Route::get('/bot-templates', [BotTemplateController::class, 'index']);
+    Route::get('/bot-templates/{id}', [BotTemplateController::class, 'show']);
+    Route::post('/bot-templates/preview', [BotTemplateController::class, 'preview']);
+    
+    Route::post('/bot-templates', [BotTemplateController::class, 'store'])->middleware('permission:bot-templates.create');
+    Route::put('/bot-templates/{id}', [BotTemplateController::class, 'update'])->middleware('permission:bot-templates.edit');
+    Route::delete('/bot-templates/{id}', [BotTemplateController::class, 'destroy'])->middleware('permission:bot-templates.delete');
+    Route::post('/bot-templates/{id}/activate', [BotTemplateController::class, 'activate'])->middleware('permission:bot-templates.edit');
+    Route::post('/bot-templates/{id}/deactivate', [BotTemplateController::class, 'deactivate'])->middleware('permission:bot-templates.edit');
 });
