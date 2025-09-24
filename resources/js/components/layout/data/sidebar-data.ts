@@ -66,7 +66,7 @@ const baseSidebarData: SidebarData = {
                 },
                 {
                     title: 'Telegraph Bots',
-                    url: '/telegraph/bots',
+                    url: '/telegraph/bot',
                     icon: Bot,
                     permission: 'telegraph',
                 },

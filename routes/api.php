@@ -176,6 +176,8 @@ Route::middleware(['auth:sanctum', 'permission:telegraph.view'])->group(function
     // Webhook Info Route (read-only from .env)
     Route::get('/telegraph/bot/webhook-domain', [TelegraphBotController::class, 'getWebhookDomain']);
     Route::get('/telegraph/bot/webhook-info', [TelegraphBotController::class, 'getWebhookInfo']);
+    Route::get('/telegraph/bot/config', [TelegraphBotController::class, 'getConfig']);
+    Route::put('/telegraph/bot/config', [TelegraphBotController::class, 'updateConfig']);
 });
 
 // Bot Template Management Routes

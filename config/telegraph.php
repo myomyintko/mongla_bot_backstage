@@ -37,11 +37,11 @@ return [
 
         /*
          * Sets a custom domain when registering a webhook. This will allow a local telegram bot api server
-         * to reach the webhook. Disabled by default
+         * to reach the webhook. Falls back to APP_URL if not set.
          *
          * For reference, see https://core.telegram.org/bots/api#using-a-local-bot-api-server
          */
-        'domain' => env('TELEGRAPH_WEBHOOK_DOMAIN'),
+        'domain' => env('TELEGRAPH_WEBHOOK_DOMAIN', env('APP_URL')),
 
         /*
          * If enabled, unknown webhook commands are
@@ -80,12 +80,12 @@ return [
     /*
      * Sets HTTP request timeout when interacting with Telegram servers
      */
-    'http_timeout' => env('TELEGRAPH_HTTP_TIMEOUT', 30),
+    'http_timeout' => env('TELEGRAPH_HTTP_TIMEOUT', 60),
 
     /*
      * Sets HTTP connection request timeout when interacting with Telegram servers
      */
-    'http_connection_timeout' => env('TELEGRAPH_HTTP_CONNECTION_TIMEOUT', 10),
+    'http_connection_timeout' => env('TELEGRAPH_HTTP_CONNECTION_TIMEOUT', 30),
 
     'security' => [
         /*

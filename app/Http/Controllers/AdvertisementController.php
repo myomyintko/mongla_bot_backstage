@@ -320,12 +320,15 @@ class AdvertisementController extends Controller
             $pausedCount = 0;
 
             foreach ($activeAds as $advertisement) {
+                // Clear existing jobs for this advertisement before pausing
+                $this->clearAdvertisementJobs($advertisement->id);
+
                 $this->advertisementService->update($advertisement, ['status' => 0]);
                 $pausedCount++;
             }
 
             return response()->json([
-                'message' => "Successfully paused {$pausedCount} advertisements",
+                'message' => "Successfully paused {$pausedCount} advertisements and cleared their jobs",
                 'paused_count' => $pausedCount
             ]);
 
@@ -352,12 +355,15 @@ class AdvertisementController extends Controller
             $resumedCount = 0;
 
             foreach ($inactiveAds as $advertisement) {
+                // Clear any existing jobs before resuming
+                $this->clearAdvertisementJobs($advertisement->id);
+
                 $this->advertisementService->update($advertisement, ['status' => 1]);
                 $resumedCount++;
             }
 
             return response()->json([
-                'message' => "Successfully resumed {$resumedCount} advertisements",
+                'message' => "Successfully resumed {$resumedCount} advertisements and cleared their old jobs",
                 'resumed_count' => $resumedCount
             ]);
 
@@ -367,4 +373,45 @@ class AdvertisementController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Clear existing jobs for a specific advertisement
+     */
+    private function clearAdvertisementJobs(int $advertisementId): void
+    {
+        try {
+            // Get all advertisement delivery jobs and check each one manually
+            $jobs = \Illuminate\Support\Facades\DB::table('jobs')
+                ->where('queue', 'advertisements')
+                ->where('payload', 'like', '%ProcessAdvertisementDelivery%')
+                ->get();
+
+            $deletedCount = 0;
+            foreach ($jobs as $job) {
+                $data = json_decode($job->payload, true);
+                if (isset($data['data']['command'])) {
+                    $command = $data['data']['command'];
+
+                    // Check if this job contains the specific advertisement ID
+                    if (preg_match('/"id";i:' . $advertisementId . ';/', $command)) {
+                        \Illuminate\Support\Facades\DB::table('jobs')
+                            ->where('id', $job->id)
+                            ->delete();
+                        $deletedCount++;
+                    }
+                }
+            }
+
+            \Illuminate\Support\Facades\Log::info('Cleared existing jobs for advertisement', [
+                'ad_id' => $advertisementId,
+                'deleted_jobs_count' => $deletedCount,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to clear existing jobs for advertisement', [
+                'ad_id' => $advertisementId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
 }

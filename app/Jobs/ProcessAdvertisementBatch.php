@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\Advertisement;
 use App\Services\Advertisement\AdvertisementServiceInterface;
+use App\Services\NetworkRetry\NetworkRetryService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -49,6 +50,28 @@ class ProcessAdvertisementBatch implements ShouldQueue
                     'batch_number' => $this->batchNumber,
                 ]);
                 return;
+            }
+
+            // Check network connectivity before processing batch
+            if (!NetworkRetryService::checkNetworkConnectivity()) {
+                Log::warning('Network connectivity unavailable, waiting for restoration before processing batch', [
+                    'ad_id' => $this->advertisement->id,
+                    'batch_number' => $this->batchNumber,
+                ]);
+
+                // Wait for network connectivity to be restored (up to 2 minutes)
+                if (!NetworkRetryService::waitForConnectivity('api.telegram.org', 443, 120, 10)) {
+                    Log::error('Network connectivity not restored, failing batch job', [
+                        'ad_id' => $this->advertisement->id,
+                        'batch_number' => $this->batchNumber,
+                    ]);
+                    throw new \Exception('Network connectivity unavailable for advertisement delivery');
+                }
+
+                Log::info('Network connectivity restored, proceeding with batch processing', [
+                    'ad_id' => $this->advertisement->id,
+                    'batch_number' => $this->batchNumber,
+                ]);
             }
 
             $deliveredCount = 0;

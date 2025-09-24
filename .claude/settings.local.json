@@ -9,7 +9,11 @@
       "Bash(tasklist)",
       "Bash(findstr:*)",
       "Bash(timeout 30 tail -f storage/logs/laravel.log)",
-      "Bash(timeout 60 tail -f storage/logs/laravel.log)"
+      "Bash(timeout 60 tail -f storage/logs/laravel.log)",
+      "Bash(nslookup:*)",
+      "Bash(ping:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 10 tail -f storage/logs/laravel.log)"
     ],
     "deny": [],
     "ask": []

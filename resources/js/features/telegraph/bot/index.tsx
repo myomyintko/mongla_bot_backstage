@@ -5,7 +5,7 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { CanView } from '@/components/permission/permission-gate'
-import { TelegraphBotInfo } from '../bot/components/telegraph-bot-info'
+import { TelegraphConfigManagement } from './components/telegraph-config-management'
 import { ForbiddenError } from '../../errors/forbidden'
 
 export function TelegraphBots() {
@@ -28,7 +28,9 @@ export function TelegraphBots() {
           </p>
         </div>
         
-        <TelegraphBotInfo />
+        <div className="space-y-6">
+          <TelegraphConfigManagement />
+        </div>
       </Main>
     </CanView>
   )

@@ -39,6 +39,24 @@ interface WebhookDomain {
   webhook_url: string | null
 }
 
+interface TelegraphConfig {
+  bot_token: string
+  bot_name: string
+  bot_username: string
+  webhook_domain: string | null
+  webhook_secret: string | null
+  max_connections: number
+  http_timeout: number
+  http_connection_timeout: number
+  default_parse_mode: string
+  report_unknown_commands: boolean
+  debug: boolean
+  allow_callback_queries_from_unknown_chats: boolean
+  allow_messages_from_unknown_chats: boolean
+  store_unknown_chats_in_db: boolean
+  attachments: any
+}
+
 
 class TelegraphService {
 
@@ -81,7 +99,18 @@ class TelegraphService {
     const response = await api.get<ApiResponse<WebhookInfo>>('/telegraph/bot/webhook-info')
     return response.data
   }
+
+  // Configuration management
+  async getConfig(): Promise<ApiResponse<TelegraphConfig>> {
+    const response = await api.get<ApiResponse<TelegraphConfig>>('/telegraph/bot/config')
+    return response.data
+  }
+
+  async updateConfig(config: Partial<TelegraphConfig>): Promise<ApiResponse<{ updated_keys: string[] }>> {
+    const response = await api.put<ApiResponse<{ updated_keys: string[] }>>('/telegraph/bot/config', config)
+    return response.data
+  }
 }
 
 export const telegraphService = new TelegraphService()
-export type { TelegraphBot, TelegraphChat, ApiResponse, WebhookInfo, WebhookDomain }
+export type { TelegraphBot, TelegraphChat, ApiResponse, WebhookInfo, WebhookDomain, TelegraphConfig }

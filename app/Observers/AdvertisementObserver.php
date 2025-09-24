@@ -122,14 +122,28 @@ class AdvertisementObserver
     private function clearExistingJobs(int $advertisementId): void
     {
         try {
-            // Use the correct pattern to find jobs for this advertisement
-            // The serialized format is: s:2:"id";i:14; (where 14 is the advertisement ID)
-            $deletedCount = \Illuminate\Support\Facades\DB::table('jobs')
+            // Get all advertisement delivery jobs and check each one manually
+            $jobs = \Illuminate\Support\Facades\DB::table('jobs')
                 ->where('queue', 'advertisements')
                 ->where('payload', 'like', '%ProcessAdvertisementDelivery%')
-                ->where('payload', 'like', '%s:2:"id";i:' . $advertisementId . ';%')
-                ->delete();
-                
+                ->get();
+
+            $deletedCount = 0;
+            foreach ($jobs as $job) {
+                $data = json_decode($job->payload, true);
+                if (isset($data['data']['command'])) {
+                    $command = $data['data']['command'];
+
+                    // Check if this job contains the specific advertisement ID
+                    if (preg_match('/"id";i:' . $advertisementId . ';/', $command)) {
+                        \Illuminate\Support\Facades\DB::table('jobs')
+                            ->where('id', $job->id)
+                            ->delete();
+                        $deletedCount++;
+                    }
+                }
+            }
+
             Log::info('Cleared existing jobs for advertisement', [
                 'ad_id' => $advertisementId,
                 'deleted_jobs_count' => $deletedCount,

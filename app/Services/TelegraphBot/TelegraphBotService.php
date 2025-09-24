@@ -12,6 +12,7 @@ use App\Repositories\TelegraphChat\TelegraphChatRepositoryInterface;
 use App\Repositories\Store\StoreRepositoryInterface;
 use App\Repositories\MenuButton\MenuButtonRepositoryInterface;
 use App\Services\BotTemplate\BotTemplateServiceInterface;
+use App\Services\NetworkRetry\NetworkRetryService;
 use Illuminate\Support\Facades\Log;
 
 class TelegraphBotService implements TelegraphBotServiceInterface
@@ -462,50 +463,59 @@ class TelegraphBotService implements TelegraphBotServiceInterface
             ];
         }
 
-        try {
-            // Skip sending only if no domain is configured
-            $domain = config('telegraph.webhook.domain');
-            if ((app()->environment('local') || app()->environment('testing')) && !$domain) {
-                return [
-                    'success' => true,
-                    'message' => "Message would be sent to chat {$chatId}: {$text} (skipped in " . app()->environment() . " environment - no domain configured)"
-                ];
-            }
-
-            // Find or create the chat and send message
-            $chat = TelegraphChat::where('chat_id', $chatId)
-                ->where('telegraph_bot_id', $bot->id)
-                ->first();
-
-            if (!$chat) {
-                $chat = new TelegraphChat();
-                $chat->chat_id = $chatId;
-                $chat->name = 'User ' . $chatId;
-                $chat->telegraph_bot_id = $bot->id;
-                $chat->save();
-            }
-
-            $response = $chat->message($text)->send();
-
-            Log::info('Message sent', ['chat_id' => $chatId, 'text' => $text]);
-
+        // Skip sending only if no domain is configured
+        $domain = config('telegraph.webhook.domain');
+        if ((app()->environment('local') || app()->environment('testing')) && !$domain) {
             return [
                 'success' => true,
-                'message' => 'Message sent successfully',
-                'response' => $response
-            ];
-        } catch (\Exception $e) {
-            Log::error('Failed to send message', [
-                'error' => $e->getMessage(),
-                'chat_id' => $chatId,
-                'text' => $text,
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Failed to send message: ' . $e->getMessage()
+                'message' => "Message would be sent to chat {$chatId}: {$text} (skipped in " . app()->environment() . " environment - no domain configured)"
             ];
         }
+
+        // Use NetworkRetryService for reliable delivery
+        return NetworkRetryService::executeWithRetry(
+            function () use ($chatId, $text, $bot) {
+                try {
+                    // Find or create the chat and send message
+                    $chat = TelegraphChat::where('chat_id', $chatId)
+                        ->where('telegraph_bot_id', $bot->id)
+                        ->first();
+
+                    if (!$chat) {
+                        $chat = new TelegraphChat();
+                        $chat->chat_id = $chatId;
+                        $chat->name = 'User ' . $chatId;
+                        $chat->telegraph_bot_id = $bot->id;
+                        $chat->save();
+                    }
+
+                    $response = $chat->message($text)->send();
+
+                    Log::info('Message sent', ['chat_id' => $chatId, 'text' => $text]);
+
+                    return [
+                        'success' => true,
+                        'message' => 'Message sent successfully',
+                        'response' => $response
+                    ];
+                } catch (\Exception $e) {
+                    Log::error('Exception in sendMessage operation', [
+                        'error' => $e->getMessage(),
+                        'chat_id' => $chatId,
+                        'text' => $text,
+                    ]);
+
+                    return [
+                        'success' => false,
+                        'message' => 'Failed to send message: ' . $e->getMessage(),
+                        'error_type' => 'send_message_error'
+                    ];
+                }
+            },
+            "send_message_to_chat_{$chatId}",
+            3,  // Max retries
+            2   // Base delay seconds
+        );
     }
 
     /**
@@ -522,49 +532,58 @@ class TelegraphBotService implements TelegraphBotServiceInterface
             ];
         }
 
-        try {
-            // Skip sending only if no domain is configured
-            $domain = config('telegraph.webhook.domain');
-            if ((app()->environment('local') || app()->environment('testing')) && !$domain) {
-                return [
-                    'success' => true,
-                    'message' => "Message with keyboard would be sent to chat {$chatId}: {$text} (skipped in " . app()->environment() . " environment - no domain configured)"
-                ];
-            }
-
-            // Convert array keyboard to Telegraph keyboard
-            $telegraphKeyboard = \DefStudio\Telegraph\Keyboard\Keyboard::make();
-            foreach ($keyboard as $row) {
-                $buttons = [];
-                foreach ($row as $button) {
-                    $buttons[] = \DefStudio\Telegraph\Keyboard\Button::make($button['text'])->action($button['callback_data']);
-                }
-                $telegraphKeyboard->buttons($buttons);
-            }
-
-            $bot->message($text)
-                ->keyboard($telegraphKeyboard)
-                ->chat($chatId)
-                ->send();
-
-            Log::info('Message with keyboard sent', ['chat_id' => $chatId, 'text' => $text]);
-
+        // Skip sending only if no domain is configured
+        $domain = config('telegraph.webhook.domain');
+        if ((app()->environment('local') || app()->environment('testing')) && !$domain) {
             return [
                 'success' => true,
-                'message' => 'Message with keyboard sent successfully'
-            ];
-        } catch (\Exception $e) {
-            Log::error('Failed to send message with keyboard', [
-                'error' => $e->getMessage(),
-                'chat_id' => $chatId,
-                'text' => $text,
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Failed to send message with keyboard: ' . $e->getMessage()
+                'message' => "Message with keyboard would be sent to chat {$chatId}: {$text} (skipped in " . app()->environment() . " environment - no domain configured)"
             ];
         }
+
+        // Use NetworkRetryService for reliable delivery
+        return NetworkRetryService::executeWithRetry(
+            function () use ($chatId, $text, $keyboard, $bot) {
+                try {
+                    // Convert array keyboard to Telegraph keyboard
+                    $telegraphKeyboard = \DefStudio\Telegraph\Keyboard\Keyboard::make();
+                    foreach ($keyboard as $row) {
+                        $buttons = [];
+                        foreach ($row as $button) {
+                            $buttons[] = \DefStudio\Telegraph\Keyboard\Button::make($button['text'])->action($button['callback_data']);
+                        }
+                        $telegraphKeyboard->buttons($buttons);
+                    }
+
+                    $bot->message($text)
+                        ->keyboard($telegraphKeyboard)
+                        ->chat($chatId)
+                        ->send();
+
+                    Log::info('Message with keyboard sent', ['chat_id' => $chatId, 'text' => $text]);
+
+                    return [
+                        'success' => true,
+                        'message' => 'Message with keyboard sent successfully'
+                    ];
+                } catch (\Exception $e) {
+                    Log::error('Exception in sendMessageWithKeyboard operation', [
+                        'error' => $e->getMessage(),
+                        'chat_id' => $chatId,
+                        'text' => $text,
+                    ]);
+
+                    return [
+                        'success' => false,
+                        'message' => 'Failed to send message with keyboard: ' . $e->getMessage(),
+                        'error_type' => 'send_message_with_keyboard_error'
+                    ];
+                }
+            },
+            "send_message_with_keyboard_to_chat_{$chatId}",
+            3,  // Max retries
+            2   // Base delay seconds
+        );
     }
 
     /**
@@ -784,115 +803,109 @@ class TelegraphBotService implements TelegraphBotServiceInterface
             ];
         }
 
-        try {
-            if (str_contains($media, 'localhost')) {
-                // Send local file
-                $media = $this->convertUrlToLocalPath($media);
-            }
+        // Use NetworkRetryService for reliable delivery
+        return NetworkRetryService::executeWithRetry(
+            function () use ($chatId, $media, $mediaType, $caption, $socialKeyboard, $bot) {
+                try {
+                    if (str_contains($media, 'localhost')) {
+                        // Send local file
+                        $media = $this->convertUrlToLocalPath($media);
+                    }
 
-            // Find or create the chat using repository
-            $chat = $this->telegraphChatRepository->getChatByChatIdAndBotId($chatId, $bot->id);
+                    // Find or create the chat using repository
+                    $chat = $this->telegraphChatRepository->getChatByChatIdAndBotId($chatId, $bot->id);
 
-            if (!$chat) {
-                $chat = $this->telegraphChatRepository->createOrUpdateChat([
-                    'chat_id' => $chatId,
-                    'name' => 'User ' . $chatId,
-                    'telegraph_bot_id' => $bot->id,
-                ]);
-            }
+                    if (!$chat) {
+                        $chat = $this->telegraphChatRepository->createOrUpdateChat([
+                            'chat_id' => $chatId,
+                            'name' => 'User ' . $chatId,
+                            'telegraph_bot_id' => $bot->id,
+                        ]);
+                    }
 
-            // Send media with keyboard using the same pattern as CallbackHandler
-            if ($socialKeyboard !== null) {
-                Log::info('Sending with keyboard using direct method chaining', [
-                    'keyboard_class' => get_class($socialKeyboard),
-                    'keyboard_array' => $socialKeyboard->toArray()
-                ]);
+                    // Send media with keyboard using the same pattern as CallbackHandler
+                    if ($socialKeyboard !== null) {
+                        Log::info('Sending with keyboard using direct method chaining', [
+                            'keyboard_class' => get_class($socialKeyboard),
+                            'keyboard_array' => $socialKeyboard->toArray()
+                        ]);
 
-                switch ($mediaType) {
-                    case 'photo':
-                    case 'image':
-                        $response = $chat->photo($media)
-                            ->message($caption)
-                            ->keyboard($socialKeyboard)
-                            ->send();
-                        break;
-                    case 'video':
-                        $response = $chat->video($media)
-                            ->message($caption)
-                            ->keyboard($socialKeyboard)
-                            ->send();
-                        break;
-                    default:
-                        $response = $chat->photo($media)
-                            ->message($caption)
-                            ->keyboard($socialKeyboard)
-                            ->send();
-                        break;
+                        switch ($mediaType) {
+                            case 'photo':
+                            case 'image':
+                                $response = $chat->photo($media)
+                                    ->message($caption)
+                                    ->keyboard($socialKeyboard)
+                                    ->send();
+                                break;
+                            case 'video':
+                                $response = $chat->video($media)
+                                    ->message($caption)
+                                    ->keyboard($socialKeyboard)
+                                    ->send();
+                                break;
+                            default:
+                                $response = $chat->photo($media)
+                                    ->message($caption)
+                                    ->keyboard($socialKeyboard)
+                                    ->send();
+                                break;
+                        }
+                    } else {
+                        Log::info('Sending without keyboard');
+
+                        switch ($mediaType) {
+                            case 'photo':
+                            case 'image':
+                                $response = $chat->photo($media)->message($caption)->send();
+                                break;
+                            case 'video':
+                                $response = $chat->video($media)->message($caption)->send();
+                                break;
+                            default:
+                                $response = $chat->photo($media)->message($caption)->send();
+                                break;
+                        }
+                    }
+
+                    // Log both the response and any potential keyboard info in the request
+                    Log::info('message sent===================>', [
+                        'response' => $response->json() ?? 'No response data',
+                        'response_has_reply_markup' => isset($response->json()['result']['reply_markup'])
+                    ]);
+
+                    Log::info('Media sent', [
+                        'chat_id' => $chatId,
+                        'media' => $media,
+                        'media_type' => $mediaType,
+                        'caption' => $caption,
+                    ]);
+
+                    return [
+                        'success' => true,
+                        'message' => 'Media sent successfully'
+                    ];
+                } catch (\Exception $e) {
+                    $errorMessage = $e->getMessage();
+
+                    Log::error('Exception in sendMedia operation', [
+                        'error' => $errorMessage,
+                        'chat_id' => $chatId,
+                        'media' => $media,
+                        'media_type' => $mediaType,
+                    ]);
+
+                    return [
+                        'success' => false,
+                        'message' => 'Failed to send media: ' . $errorMessage,
+                        'error_type' => 'send_media_error'
+                    ];
                 }
-            } else {
-                Log::info('Sending without keyboard');
-
-                switch ($mediaType) {
-                    case 'photo':
-                    case 'image':
-                        $response = $chat->photo($media)->message($caption)->send();
-                        break;
-                    case 'video':
-                        $response = $chat->video($media)->message($caption)->send();
-                        break;
-                    default:
-                        $response = $chat->photo($media)->message($caption)->send();
-                        break;
-                }
-            }
-
-            // Log both the response and any potential keyboard info in the request
-            Log::info('message sent===================>', [
-                'response' => $response->json() ?? 'No response data',
-                'response_has_reply_markup' => isset($response->json()['result']['reply_markup'])
-            ]);
-
-            Log::info('Media sent', [
-                'chat_id' => $chatId,
-                'media' => $media,
-                'media_type' => $mediaType,
-                'caption' => $caption,
-            ]);
-
-            return [
-                'success' => true,
-                'message' => 'Media sent successfully'
-            ];
-        } catch (\Exception $e) {
-            $errorMessage = $e->getMessage();
-
-            // Check for specific network errors
-            if (str_contains($errorMessage, 'cURL error 6') || str_contains($errorMessage, 'Could not resolve host')) {
-                Log::error('Network connectivity issue - cannot reach Telegram API', [
-                    'error' => $errorMessage,
-                    'chat_id' => $chatId,
-                    'media_type' => $mediaType,
-                ]);
-
-                return [
-                    'success' => false,
-                    'message' => 'Network connectivity issue - cannot reach Telegram API. Please check your internet connection.',
-                    'error_type' => 'network_error'
-                ];
-            }
-
-            Log::error('Failed to send media', [
-                'error' => $errorMessage,
-                'chat_id' => $chatId,
-                'media' => $media,
-                'media_type' => $mediaType,
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Failed to send media: ' . $errorMessage
-            ];
-        }
+            },
+            "send_media_to_chat_{$chatId}",
+            3,  // Max retries
+            2   // Base delay seconds
+        );
     }
 
 

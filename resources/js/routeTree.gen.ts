@@ -36,7 +36,7 @@ import { Route as AuthenticatedDashboardStoreRouteImport } from './routes/_authe
 import { Route as AuthenticatedDashboardOverviewRouteImport } from './routes/_authenticated/dashboard/overview'
 import { Route as AuthenticatedDashboardCustomersRouteImport } from './routes/_authenticated/dashboard/customers'
 import { Route as AuthenticatedDashboardAdvertisementRouteImport } from './routes/_authenticated/dashboard/advertisement'
-import { Route as AuthenticatedTelegraphBotsIndexRouteImport } from './routes/_authenticated/telegraph/bots/index'
+import { Route as AuthenticatedTelegraphBotIndexRouteImport } from './routes/_authenticated/telegraph/bot/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -187,10 +187,10 @@ const AuthenticatedDashboardAdvertisementRoute =
     path: '/dashboard/advertisement',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedTelegraphBotsIndexRoute =
-  AuthenticatedTelegraphBotsIndexRouteImport.update({
-    id: '/telegraph/bots/',
-    path: '/telegraph/bots/',
+const AuthenticatedTelegraphBotIndexRoute =
+  AuthenticatedTelegraphBotIndexRouteImport.update({
+    id: '/telegraph/bot/',
+    path: '/telegraph/bot/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -221,7 +221,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/stores': typeof AuthenticatedStoresIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
-  '/telegraph/bots': typeof AuthenticatedTelegraphBotsIndexRoute
+  '/telegraph/bot': typeof AuthenticatedTelegraphBotIndexRoute
 }
 export interface FileRoutesByTo {
   '/otp': typeof authOtpRoute
@@ -249,7 +249,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/stores': typeof AuthenticatedStoresIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
-  '/telegraph/bots': typeof AuthenticatedTelegraphBotsIndexRoute
+  '/telegraph/bot': typeof AuthenticatedTelegraphBotIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -280,7 +280,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/stores/': typeof AuthenticatedStoresIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
-  '/_authenticated/telegraph/bots/': typeof AuthenticatedTelegraphBotsIndexRoute
+  '/_authenticated/telegraph/bot/': typeof AuthenticatedTelegraphBotIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -311,7 +311,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/stores'
     | '/users'
-    | '/telegraph/bots'
+    | '/telegraph/bot'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/otp'
@@ -339,7 +339,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stores'
     | '/users'
-    | '/telegraph/bots'
+    | '/telegraph/bot'
   id:
     | '__root__'
     | '/_authenticated'
@@ -369,7 +369,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/'
     | '/_authenticated/stores/'
     | '/_authenticated/users/'
-    | '/_authenticated/telegraph/bots/'
+    | '/_authenticated/telegraph/bot/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -575,11 +575,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardAdvertisementRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/telegraph/bots/': {
-      id: '/_authenticated/telegraph/bots/'
-      path: '/telegraph/bots'
-      fullPath: '/telegraph/bots'
-      preLoaderRoute: typeof AuthenticatedTelegraphBotsIndexRouteImport
+    '/_authenticated/telegraph/bot/': {
+      id: '/_authenticated/telegraph/bot/'
+      path: '/telegraph/bot'
+      fullPath: '/telegraph/bot'
+      preLoaderRoute: typeof AuthenticatedTelegraphBotIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -619,7 +619,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRolesIndexRoute: typeof AuthenticatedRolesIndexRoute
   AuthenticatedStoresIndexRoute: typeof AuthenticatedStoresIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
-  AuthenticatedTelegraphBotsIndexRoute: typeof AuthenticatedTelegraphBotsIndexRoute
+  AuthenticatedTelegraphBotIndexRoute: typeof AuthenticatedTelegraphBotIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -639,7 +639,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRolesIndexRoute: AuthenticatedRolesIndexRoute,
   AuthenticatedStoresIndexRoute: AuthenticatedStoresIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
-  AuthenticatedTelegraphBotsIndexRoute: AuthenticatedTelegraphBotsIndexRoute,
+  AuthenticatedTelegraphBotIndexRoute: AuthenticatedTelegraphBotIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

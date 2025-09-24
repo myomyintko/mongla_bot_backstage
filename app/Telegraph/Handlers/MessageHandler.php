@@ -28,6 +28,20 @@ class MessageHandler
             return;
         }
 
+        // Search functionality is temporarily disabled - delete the incoming message
+        try {
+            $this->chat->deleteMessage($this->message->id())->send();
+        } catch (\Exception $e) {
+            // Silently ignore deletion errors (message might be too old or bot lacks permissions)
+            Log::debug('Could not delete message', [
+                'message_id' => $this->message->id(),
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        // TODO: Search functionality disabled
+        // Original search code preserved below:
+        /*
         // Handle search functionality
         if (strlen(trim($text)) >= 2) {
             $this->searchStores($text);
@@ -38,11 +52,12 @@ class MessageHandler
                        "• Store name\n" .
                        "• Description\n" .
                        "• Address";
-            
+
             $this->chat->message($response)
                 ->keyboard(KeyboardBuilder::searchOptions())
                 ->send();
         }
+        */
     }
 
     protected function isReplyKeyboardButton(string $text): bool
@@ -128,8 +143,20 @@ class MessageHandler
             return;
         }
 
-        // If not found, treat as search
-        $this->searchStores($text);
+        // If not found, delete the message (search disabled)
+        try {
+            $this->chat->deleteMessage($this->message->id())->send();
+        } catch (\Exception $e) {
+            // Silently ignore deletion errors (message might be too old or bot lacks permissions)
+            Log::debug('Could not delete unrecognized message', [
+                'message_id' => $this->message->id(),
+                'text' => $text,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        // TODO: Search functionality disabled
+        // $this->searchStores($text);
     }
 
     protected function findSubMenuButtonId(string $text): ?int
