@@ -6,8 +6,6 @@ namespace App\Telegraph\Handlers;
 
 use App\Services\TelegraphBot\TelegraphBotServiceInterface;
 use App\Telegraph\Handlers\KeyboardBuilder;
-use DefStudio\Telegraph\Keyboard\Button;
-use DefStudio\Telegraph\Keyboard\Keyboard;
 use DefStudio\Telegraph\Models\TelegraphChat;
 use DefStudio\Telegraph\DTO\Message;
 use Illuminate\Support\Facades\Log;
@@ -61,7 +59,6 @@ class CommandHandler
         $helpText = $this->telegraphBotService->getTemplateContent('help', $userVariables);
 
         $helpResponse = $this->chat->message($helpText)
-            ->keyboard(KeyboardBuilder::helpBack())
             ->send();
         Log::info('Help message sent', [
             'response' => $helpResponse->json() ?? 'No response data'
@@ -94,15 +91,8 @@ class CommandHandler
                 Log::info('Trending stores message sent', [
                     'response' => $trendingResponse->json() ?? 'No response data'
                 ]);
-            } else {
-                $trendingResponse = $this->chat->message("No trending stores available at the moment.")
-                    ->keyboard(KeyboardBuilder::backToMenu())
-                    ->send();
-                    
-                Log::info('No trending stores message sent', [
-                    'response' => $trendingResponse->json() ?? 'No response data'
-                ]);
             }
+            // Don't send any message when no trending stores exist
         } catch (\Exception $e) {
             Log::error('Failed to send trending stores message', [
                 'error' => $e->getMessage()

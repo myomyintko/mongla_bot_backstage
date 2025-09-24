@@ -8,7 +8,6 @@ use App\Services\TelegraphBot\TelegraphBotServiceInterface;
 use App\Telegraph\Handlers\KeyboardBuilder;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
-use DefStudio\Telegraph\Models\TelegraphBot;
 use DefStudio\Telegraph\Models\TelegraphChat;
 use DefStudio\Telegraph\DTO\CallbackQuery;
 use Illuminate\Support\Facades\Log;
@@ -261,11 +260,8 @@ class CallbackHandler
 
             // Send message with or without media
             $this->sendStoreMessage($store, $storeText, $backKeyboard, $storeId, $source);
-        } else {
-            $this->chat->message("❌ Store not found or error occurred.")
-                ->keyboard(KeyboardBuilder::backToMenu())
-                ->send();
         }
+        // Don't send any message when no trending stores exist
     }
 
     /**
@@ -276,15 +272,14 @@ class CallbackHandler
         switch ($source) {
             case 'trending':
                 return KeyboardBuilder::backToTrending();
-            case 'menu':
-                return KeyboardBuilder::backToMenu();
             default:
                 // If source contains menu ID, create back to specific menu
                 if (str_starts_with($source, 'menu_')) {
                     $menuId = (int) str_replace('menu_', '', $source);
-                    return KeyboardBuilder::backToMenu($menuId);
+                    $backKeyboard = KeyboardBuilder::backToMenu($menuId);
+                    return $backKeyboard ?: Keyboard::make(); // Return empty if null
                 }
-                return KeyboardBuilder::backToMenu();
+                return Keyboard::make(); // Return empty keyboard
         }
     }
 
@@ -565,7 +560,6 @@ class CallbackHandler
 
         if (!$storeResponse['success'] || !$storeResponse['data']) {
             $this->chat->message("❌ Store not found or error occurred.")
-                ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
             return;
         }
@@ -575,7 +569,6 @@ class CallbackHandler
         // Check if store has menu_urls
         if (empty($store['menu_urls']) || !is_array($store['menu_urls']) || count($store['menu_urls']) === 0) {
             $this->chat->message("❌ No menu available for this store.")
-                ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
             return;
         }
@@ -585,7 +578,6 @@ class CallbackHandler
 
             if (empty($mediaGroup)) {
                 $this->chat->message("❌ No valid menu files found.")
-                    ->keyboard(KeyboardBuilder::backToMenu())
                     ->send();
                 return;
             }
@@ -609,7 +601,6 @@ class CallbackHandler
             ]);
 
             $this->chat->message("❌ Failed to load menu. Please try again later.")
-                ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
         }
     }
@@ -623,12 +614,10 @@ class CallbackHandler
             if ($editMessage) {
                 $this->chat->edit($this->callbackQuery->message()->id())
                     ->message("❌ Menu not found.")
-                    ->keyboard(KeyboardBuilder::backToMenu())
-                    ->send();
+                        ->send();
             } else {
                 $this->chat->message("❌ Menu not found.")
-                    ->keyboard(KeyboardBuilder::backToMenu())
-                    ->send();
+                        ->send();
             }
             return;
         }
@@ -688,12 +677,10 @@ class CallbackHandler
             if ($editMessage) {
                 $this->chat->edit($this->callbackQuery->message()->id())
                     ->message($menuText)
-                    ->keyboard(KeyboardBuilder::backToMenu())
-                    ->send();
+                        ->send();
             } else {
                 $this->chat->message($menuText)
-                    ->keyboard(KeyboardBuilder::backToMenu())
-                    ->send();
+                        ->send();
             }
         }
     }
@@ -715,7 +702,6 @@ class CallbackHandler
                 ->send();
         } else {
             $this->chat->message("No trending stores available at the moment.")
-                ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
         }
     }
@@ -737,10 +723,8 @@ class CallbackHandler
                 ->keyboard(KeyboardBuilder::trendingStores($trendingStores))
                 ->send();
         } else {
-            $this->chat->edit($this->callbackQuery->message()->id())
-                ->message("🔥 *Trending Stores*\n\nNo trending stores available at the moment.")
-                ->keyboard(KeyboardBuilder::backToMenu())
-                ->send();
+            // Don't send any message when no trending stores exist
+            $this->deleteCurrentMessage();
         }
     }
 
@@ -749,7 +733,6 @@ class CallbackHandler
         Log::warning('Unknown callback data received', ['data' => $callbackData]);
 
         $this->chat->message("❌ Unknown action. Please try again.")
-            ->keyboard(KeyboardBuilder::backToMenu())
             ->send();
     }
 
@@ -838,10 +821,7 @@ class CallbackHandler
 
             // Send message with or without media
             $this->sendStoreMessage($store, $storeText, $backKeyboard, $storeId, $source);
-        } else {
-            $this->chat->message("❌ Store not found or error occurred.")
-                ->keyboard(KeyboardBuilder::backToMenu())
-                ->send();
         }
+        // Don't send any message when no trending stores exist
     }
 }

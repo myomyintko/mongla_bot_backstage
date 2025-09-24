@@ -12,7 +12,7 @@ use DefStudio\Telegraph\Keyboard\ReplyKeyboard;
 class KeyboardBuilder
 {
 
-    public static function backToMenu(?int $menuId = null): Keyboard
+    public static function backToMenu(?int $menuId = null): ?Keyboard
     {
         if ($menuId) {
             return Keyboard::make()->buttons([
@@ -20,9 +20,7 @@ class KeyboardBuilder
             ]);
         }
         
-        return Keyboard::make()->buttons([
-            Button::make('🔙 Back to Menu')->action('show_menu'),
-        ]);
+        return Keyboard::make();
     }
 
     public static function backToTrending(): Keyboard
@@ -37,13 +35,6 @@ class KeyboardBuilder
         return Keyboard::make()->buttons([
             Button::make('📋 Main Menu')->action('show_menu'),
             Button::make('🔥 Trending Stores')->action('show_trending'),
-        ]);
-    }
-
-    public static function helpBack(): Keyboard
-    {
-        return Keyboard::make()->buttons([
-            Button::make('🔙 Back to Menu')->action('show_menu'),
         ]);
     }
 

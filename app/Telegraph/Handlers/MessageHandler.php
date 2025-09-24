@@ -6,8 +6,6 @@ namespace App\Telegraph\Handlers;
 
 use App\Services\TelegraphBot\TelegraphBotServiceInterface;
 use App\Telegraph\Handlers\KeyboardBuilder;
-use DefStudio\Telegraph\Keyboard\Button;
-use DefStudio\Telegraph\Keyboard\Keyboard;
 use DefStudio\Telegraph\Models\TelegraphChat;
 use DefStudio\Telegraph\DTO\Message;
 use Illuminate\Support\Facades\Log;
@@ -184,7 +182,6 @@ class MessageHandler
 
         if (!$menuResponse['success'] || !$menuResponse['data']) {
             $this->chat->message("❌ Menu not found.")
-                ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
             return;
         }
@@ -221,7 +218,6 @@ class MessageHandler
             $menuText = $this->telegraphBotService->getTemplateContent('store_list', $userVariables) . "\n\nNo stores found in this category at the moment.";
 
             $this->chat->message($menuText)
-                ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
         }
 
@@ -249,7 +245,6 @@ class MessageHandler
                 ->send();
         } else {
             $this->chat->message("No trending stores available at the moment.")
-                ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
         }
     }
@@ -278,7 +273,6 @@ class MessageHandler
                    "Use the buttons to navigate through the features!";
 
         $this->chat->message($helpText)
-            ->keyboard(KeyboardBuilder::helpBack())
             ->send();
     }
 
