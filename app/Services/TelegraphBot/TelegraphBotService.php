@@ -7,6 +7,7 @@ namespace App\Services\TelegraphBot;
 use DefStudio\Telegraph\Models\TelegraphBot;
 use DefStudio\Telegraph\Models\TelegraphChat;
 use DefStudio\Telegraph\Keyboard\Keyboard;
+use DefStudio\Telegraph\Keyboard\Button;
 use App\Repositories\TelegraphBot\TelegraphBotRepositoryInterface;
 use App\Repositories\TelegraphChat\TelegraphChatRepositoryInterface;
 use App\Repositories\Store\StoreRepositoryInterface;
@@ -49,24 +50,7 @@ class TelegraphBotService implements TelegraphBotServiceInterface
         }
 
         try {
-            // Skip actual API call in testing environment
-            if (app()->environment('testing')) {
-                return [
-                    'success' => true,
-                    'data' => [
-                        'id' => 123456789,
-                        'is_bot' => true,
-                        'first_name' => 'Test Bot',
-                        'username' => 'test_bot',
-                        'can_join_groups' => true,
-                        'can_read_all_group_messages' => false,
-                        'support_inline_queries' => false,
-                    ]
-                ];
-            }
-
             $info = $bot->info();
-
             return [
                 'success' => true,
                 'data' => $info
@@ -201,8 +185,8 @@ class TelegraphBotService implements TelegraphBotServiceInterface
             }
 
             $bot->message('🤖 Test message from Mongolia Bot!')
-                ->keyboard(\DefStudio\Telegraph\Keyboard\Keyboard::make()->buttons([
-                    \DefStudio\Telegraph\Keyboard\Button::make('✅ Test Successful')->action('test_success'),
+                ->keyboard(Keyboard::make()->buttons([
+                    Button::make('✅ Test Successful')->action('test_success'),
                 ]))
                 ->chat($chat)
                 ->send();
@@ -546,11 +530,11 @@ class TelegraphBotService implements TelegraphBotServiceInterface
             function () use ($chatId, $text, $keyboard, $bot) {
                 try {
                     // Convert array keyboard to Telegraph keyboard
-                    $telegraphKeyboard = \DefStudio\Telegraph\Keyboard\Keyboard::make();
+                    $telegraphKeyboard = Keyboard::make();
                     foreach ($keyboard as $row) {
                         $buttons = [];
                         foreach ($row as $button) {
-                            $buttons[] = \DefStudio\Telegraph\Keyboard\Button::make($button['text'])->action($button['callback_data']);
+                            $buttons[] = Button::make($button['text'])->action($button['callback_data']);
                         }
                         $telegraphKeyboard->buttons($buttons);
                     }
