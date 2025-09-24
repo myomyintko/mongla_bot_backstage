@@ -66,6 +66,18 @@ class RolePermissionSeeder extends Seeder
             'system.settings',
             'system.logs',
             'system.backup',
+
+            // Telegraph Management
+            'telegraph.view',
+            'telegraph.create',
+            'telegraph.edit',
+            'telegraph.delete',
+            
+            // Bot Template Management
+            'bot-templates.view',
+            'bot-templates.create',
+            'bot-templates.edit',
+            'bot-templates.delete',
         ];
 
         foreach ($permissions as $permission) {
@@ -122,6 +134,14 @@ class RolePermissionSeeder extends Seeder
             'media.delete',
             'roles.view',
             'permissions.view',
+            'telegraph.view',
+            'telegraph.create',
+            'telegraph.edit',
+            'telegraph.delete',
+            'bot-templates.view',
+            'bot-templates.create',
+            'bot-templates.edit',
+            'bot-templates.delete',
         ]);
     }
 
@@ -149,6 +169,9 @@ class RolePermissionSeeder extends Seeder
             'media.view',
             'media.upload',
             'roles.view',
+            'bot-templates.view',
+            'bot-templates.create',
+            'bot-templates.edit',
         ]);
     }
 
@@ -176,6 +199,9 @@ class RolePermissionSeeder extends Seeder
             'media.view',
             'media.upload',
             'roles.view',
+            'bot-templates.view',
+            'bot-templates.create',
+            'bot-templates.edit',
         ]);
     }
 
@@ -194,6 +220,7 @@ class RolePermissionSeeder extends Seeder
             'menu-buttons.view',
             'media.view',
             'roles.view',
+            'bot-templates.view',
         ]);
     }
 

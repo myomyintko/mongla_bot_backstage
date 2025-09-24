@@ -77,6 +77,8 @@ class DatabaseSeeder extends Seeder
         $this->command->info('📝 Seeding content data...');
         
         $this->call([
+            BotTemplateSeeder::class,
+
             PinMessageSeeder::class,
         ]);
     }

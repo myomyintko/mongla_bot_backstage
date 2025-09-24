@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php:*)",
+      "Bash(npm run build:*)",
+      "Bash(del check_ads.php check_queue_tables.php check_simple.php)",
+      "Bash(del test_bulk_resume.php test_bulk_pause.php)",
+      "Bash(del:*)",
+      "Bash(tasklist)",
+      "Bash(findstr:*)",
+      "Bash(timeout 30 tail -f storage/logs/laravel.log)",
+      "Bash(timeout 60 tail -f storage/logs/laravel.log)",
+      "Bash(nslookup:*)",
+      "Bash(ping:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 10 tail -f storage/logs/laravel.log)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -27,6 +27,7 @@ import { Route as AuthenticatedRolesIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedPinMessagesIndexRouteImport } from './routes/_authenticated/pin-messages/index'
 import { Route as AuthenticatedMenuButtonsIndexRouteImport } from './routes/_authenticated/menu-buttons/index'
 import { Route as AuthenticatedMediaLibraryIndexRouteImport } from './routes/_authenticated/media-library/index'
+import { Route as AuthenticatedBotTemplatesIndexRouteImport } from './routes/_authenticated/bot-templates/index'
 import { Route as AuthenticatedAdvertisementsIndexRouteImport } from './routes/_authenticated/advertisements/index'
 import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings/security'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
@@ -35,6 +36,7 @@ import { Route as AuthenticatedDashboardStoreRouteImport } from './routes/_authe
 import { Route as AuthenticatedDashboardOverviewRouteImport } from './routes/_authenticated/dashboard/overview'
 import { Route as AuthenticatedDashboardCustomersRouteImport } from './routes/_authenticated/dashboard/customers'
 import { Route as AuthenticatedDashboardAdvertisementRouteImport } from './routes/_authenticated/dashboard/advertisement'
+import { Route as AuthenticatedTelegraphBotIndexRouteImport } from './routes/_authenticated/telegraph/bot/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -131,6 +133,12 @@ const AuthenticatedMediaLibraryIndexRoute =
     path: '/media-library/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBotTemplatesIndexRoute =
+  AuthenticatedBotTemplatesIndexRouteImport.update({
+    id: '/bot-templates/',
+    path: '/bot-templates/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdvertisementsIndexRoute =
   AuthenticatedAdvertisementsIndexRouteImport.update({
     id: '/advertisements/',
@@ -179,6 +187,12 @@ const AuthenticatedDashboardAdvertisementRoute =
     path: '/dashboard/advertisement',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTelegraphBotIndexRoute =
+  AuthenticatedTelegraphBotIndexRouteImport.update({
+    id: '/telegraph/bot/',
+    path: '/telegraph/bot/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
@@ -199,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/advertisements': typeof AuthenticatedAdvertisementsIndexRoute
+  '/bot-templates': typeof AuthenticatedBotTemplatesIndexRoute
   '/media-library': typeof AuthenticatedMediaLibraryIndexRoute
   '/menu-buttons': typeof AuthenticatedMenuButtonsIndexRoute
   '/pin-messages': typeof AuthenticatedPinMessagesIndexRoute
@@ -206,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/stores': typeof AuthenticatedStoresIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/telegraph/bot': typeof AuthenticatedTelegraphBotIndexRoute
 }
 export interface FileRoutesByTo {
   '/otp': typeof authOtpRoute
@@ -225,6 +241,7 @@ export interface FileRoutesByTo {
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/advertisements': typeof AuthenticatedAdvertisementsIndexRoute
+  '/bot-templates': typeof AuthenticatedBotTemplatesIndexRoute
   '/media-library': typeof AuthenticatedMediaLibraryIndexRoute
   '/menu-buttons': typeof AuthenticatedMenuButtonsIndexRoute
   '/pin-messages': typeof AuthenticatedPinMessagesIndexRoute
@@ -232,6 +249,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/stores': typeof AuthenticatedStoresIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/telegraph/bot': typeof AuthenticatedTelegraphBotIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -254,6 +272,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/_authenticated/advertisements/': typeof AuthenticatedAdvertisementsIndexRoute
+  '/_authenticated/bot-templates/': typeof AuthenticatedBotTemplatesIndexRoute
   '/_authenticated/media-library/': typeof AuthenticatedMediaLibraryIndexRoute
   '/_authenticated/menu-buttons/': typeof AuthenticatedMenuButtonsIndexRoute
   '/_authenticated/pin-messages/': typeof AuthenticatedPinMessagesIndexRoute
@@ -261,6 +280,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/stores/': typeof AuthenticatedStoresIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/telegraph/bot/': typeof AuthenticatedTelegraphBotIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -283,6 +303,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/security'
     | '/advertisements'
+    | '/bot-templates'
     | '/media-library'
     | '/menu-buttons'
     | '/pin-messages'
@@ -290,6 +311,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/stores'
     | '/users'
+    | '/telegraph/bot'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/otp'
@@ -309,6 +331,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/security'
     | '/advertisements'
+    | '/bot-templates'
     | '/media-library'
     | '/menu-buttons'
     | '/pin-messages'
@@ -316,6 +339,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stores'
     | '/users'
+    | '/telegraph/bot'
   id:
     | '__root__'
     | '/_authenticated'
@@ -337,6 +361,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/security'
     | '/_authenticated/advertisements/'
+    | '/_authenticated/bot-templates/'
     | '/_authenticated/media-library/'
     | '/_authenticated/menu-buttons/'
     | '/_authenticated/pin-messages/'
@@ -344,6 +369,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/'
     | '/_authenticated/stores/'
     | '/_authenticated/users/'
+    | '/_authenticated/telegraph/bot/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -486,6 +512,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMediaLibraryIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bot-templates/': {
+      id: '/_authenticated/bot-templates/'
+      path: '/bot-templates'
+      fullPath: '/bot-templates'
+      preLoaderRoute: typeof AuthenticatedBotTemplatesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/advertisements/': {
       id: '/_authenticated/advertisements/'
       path: '/advertisements'
@@ -542,6 +575,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardAdvertisementRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/telegraph/bot/': {
+      id: '/_authenticated/telegraph/bot/'
+      path: '/telegraph/bot'
+      fullPath: '/telegraph/bot'
+      preLoaderRoute: typeof AuthenticatedTelegraphBotIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -572,12 +612,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardStoreRoute: typeof AuthenticatedDashboardStoreRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedAdvertisementsIndexRoute: typeof AuthenticatedAdvertisementsIndexRoute
+  AuthenticatedBotTemplatesIndexRoute: typeof AuthenticatedBotTemplatesIndexRoute
   AuthenticatedMediaLibraryIndexRoute: typeof AuthenticatedMediaLibraryIndexRoute
   AuthenticatedMenuButtonsIndexRoute: typeof AuthenticatedMenuButtonsIndexRoute
   AuthenticatedPinMessagesIndexRoute: typeof AuthenticatedPinMessagesIndexRoute
   AuthenticatedRolesIndexRoute: typeof AuthenticatedRolesIndexRoute
   AuthenticatedStoresIndexRoute: typeof AuthenticatedStoresIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
+  AuthenticatedTelegraphBotIndexRoute: typeof AuthenticatedTelegraphBotIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -590,12 +632,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardStoreRoute: AuthenticatedDashboardStoreRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedAdvertisementsIndexRoute: AuthenticatedAdvertisementsIndexRoute,
+  AuthenticatedBotTemplatesIndexRoute: AuthenticatedBotTemplatesIndexRoute,
   AuthenticatedMediaLibraryIndexRoute: AuthenticatedMediaLibraryIndexRoute,
   AuthenticatedMenuButtonsIndexRoute: AuthenticatedMenuButtonsIndexRoute,
   AuthenticatedPinMessagesIndexRoute: AuthenticatedPinMessagesIndexRoute,
   AuthenticatedRolesIndexRoute: AuthenticatedRolesIndexRoute,
   AuthenticatedStoresIndexRoute: AuthenticatedStoresIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
+  AuthenticatedTelegraphBotIndexRoute: AuthenticatedTelegraphBotIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

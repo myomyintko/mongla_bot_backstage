@@ -3,7 +3,6 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\MediaController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\AdvertisementController;
 use App\Http\Controllers\PinMessageController;
@@ -12,6 +11,10 @@ use App\Http\Controllers\MediaLibraryController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TwoFactorController;
+use App\Http\Controllers\TelegraphBotController;
+use App\Http\Controllers\Admin\BotTemplateController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,13 +59,6 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::put('/password', [ProfileController::class, 'updatePassword']);
 });
 
-// Media upload routes
-Route::middleware(['auth:sanctum', 'permission:media.upload'])->prefix('media')->group(function () {
-    Route::post('/upload', [MediaController::class, 'upload']);
-    Route::delete('/delete', [MediaController::class, 'delete'])->middleware('permission:media.delete');
-    Route::get('/info', [MediaController::class, 'info'])->middleware('permission:media.view');
-});
-
 // Menu Buttons routes
 Route::middleware(['auth:sanctum', 'permission:menu-buttons.view'])->group(function () {
     Route::get('/menu-buttons', [\App\Http\Controllers\MenuButtonController::class, 'index']);
@@ -79,8 +75,15 @@ Route::middleware(['auth:sanctum', 'permission:menu-buttons.view'])->group(funct
 // Stores routes
 Route::middleware(['auth:sanctum', 'permission:stores.view'])->group(function () {
     Route::get('/stores', [StoreController::class, 'index']);
+
+    // Dashboard routes MUST come before {store} parameter route
+    Route::get('/stores/stats', [StoreController::class, 'stats']);
+    Route::get('/stores/top-performing', [StoreController::class, 'topPerforming']);
+    Route::get('/stores/status-breakdown', [StoreController::class, 'statusBreakdown']);
+    Route::get('/stores/recent-activity', [StoreController::class, 'recentActivity']);
+
     Route::get('/stores/{store}', [StoreController::class, 'show']);
-    
+
     Route::post('/stores', [StoreController::class, 'store'])->middleware('permission:stores.create');
     Route::put('/stores/{store}', [StoreController::class, 'update'])->middleware('permission:stores.edit');
     Route::delete('/stores/{store}', [StoreController::class, 'destroy'])->middleware('permission:stores.delete');
@@ -92,13 +95,26 @@ Route::middleware(['auth:sanctum', 'permission:stores.view'])->group(function ()
 // Advertisements routes
 Route::middleware(['auth:sanctum', 'permission:advertisements.view'])->group(function () {
     Route::get('/advertisements', [AdvertisementController::class, 'index']);
+
+    // Dashboard routes MUST come before {advertisement} parameter route
+    Route::get('/advertisements/stats', [AdvertisementController::class, 'stats']);
+    Route::get('/advertisements/top-performing', [AdvertisementController::class, 'topPerforming']);
+    Route::get('/advertisements/status-breakdown', [AdvertisementController::class, 'statusBreakdown']);
+    Route::get('/advertisements/recent-activity', [AdvertisementController::class, 'recentActivity']);
+    Route::get('/advertisements/metrics', [AdvertisementController::class, 'metrics']);
+    Route::get('/advertisements/upcoming', [AdvertisementController::class, 'upcoming']);
+
     Route::get('/advertisements/{advertisement}', [AdvertisementController::class, 'show']);
-    
+
     Route::post('/advertisements', [AdvertisementController::class, 'store'])->middleware('permission:advertisements.create');
     Route::put('/advertisements/{advertisement}', [AdvertisementController::class, 'update'])->middleware('permission:advertisements.edit');
     Route::delete('/advertisements/{advertisement}', [AdvertisementController::class, 'destroy'])->middleware('permission:advertisements.delete');
     Route::post('/advertisements/bulk-update', [AdvertisementController::class, 'bulkUpdate'])->middleware('permission:advertisements.edit');
     Route::post('/advertisements/bulk-delete', [AdvertisementController::class, 'bulkDelete'])->middleware('permission:advertisements.delete');
+    Route::post('/advertisements/{advertisement}/pause', [AdvertisementController::class, 'pause'])->middleware('permission:advertisements.edit');
+    Route::post('/advertisements/{advertisement}/resume', [AdvertisementController::class, 'resume'])->middleware('permission:advertisements.edit');
+    Route::post('/advertisements/bulk-pause-all', [AdvertisementController::class, 'bulkPauseAll'])->middleware('permission:advertisements.edit');
+    Route::post('/advertisements/bulk-resume-all', [AdvertisementController::class, 'bulkResumeAll'])->middleware('permission:advertisements.edit');
 });
 
 // Pin Messages routes
@@ -148,3 +164,47 @@ Route::middleware(['auth:sanctum', 'permission:roles.view'])->group(function () 
     Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('permission:roles.edit');
     Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:roles.delete');
 });
+
+// Telegraph Bot Management Routes (Single Bot Configuration)
+Route::middleware(['auth:sanctum', 'permission:telegraph.view'])->group(function () {
+    Route::get('/telegraph/bot', [TelegraphBotController::class, 'index']);
+    Route::get('/telegraph/bot/info', [TelegraphBotController::class, 'getBotInfo']);
+    Route::post('/telegraph/bot/register-webhook', [TelegraphBotController::class, 'registerWebhook']);
+    Route::post('/telegraph/bot/unregister-webhook', [TelegraphBotController::class, 'unregisterWebhook']);
+    Route::post('/telegraph/bot/send-test-message', [TelegraphBotController::class, 'sendTestMessage']);
+    
+    // Webhook Info Route (read-only from .env)
+    Route::get('/telegraph/bot/webhook-domain', [TelegraphBotController::class, 'getWebhookDomain']);
+    Route::get('/telegraph/bot/webhook-info', [TelegraphBotController::class, 'getWebhookInfo']);
+    Route::get('/telegraph/bot/config', [TelegraphBotController::class, 'getConfig']);
+    Route::put('/telegraph/bot/config', [TelegraphBotController::class, 'updateConfig']);
+});
+
+// Bot Template Management Routes
+Route::middleware(['auth:sanctum', 'permission:bot-templates.view'])->group(function () {
+    Route::get('/bot-templates', [BotTemplateController::class, 'index']);
+    Route::get('/bot-templates/{id}', [BotTemplateController::class, 'show']);
+    Route::post('/bot-templates/preview', [BotTemplateController::class, 'preview']);
+
+    Route::post('/bot-templates', [BotTemplateController::class, 'store'])->middleware('permission:bot-templates.create');
+    Route::put('/bot-templates/{id}', [BotTemplateController::class, 'update'])->middleware('permission:bot-templates.edit');
+    Route::delete('/bot-templates/{id}', [BotTemplateController::class, 'destroy'])->middleware('permission:bot-templates.delete');
+    Route::post('/bot-templates/{id}/activate', [BotTemplateController::class, 'activate'])->middleware('permission:bot-templates.edit');
+    Route::post('/bot-templates/{id}/deactivate', [BotTemplateController::class, 'deactivate'])->middleware('permission:bot-templates.edit');
+});
+
+// Customer Management Routes (Telegram Users)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/customers', [CustomerController::class, 'index']);
+    Route::get('/customers/stats', [CustomerController::class, 'stats']);
+    Route::get('/customers/recent', [CustomerController::class, 'recent']);
+});
+
+// Dashboard Statistics Routes
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Overview dashboard
+    Route::get('/dashboard/overview', [DashboardController::class, 'overview']);
+    Route::get('/dashboard/monthly-revenue', [DashboardController::class, 'monthlyRevenue']);
+    Route::get('/dashboard/recent-sales', [DashboardController::class, 'recentSales']);
+});
+

@@ -11,7 +11,12 @@ export const storesSchema = z.object({
   status: z.number().nullable(),
   address: z.string().nullable(),
   recommand: z.boolean(),
-  sub_btns: z.array(z.string()).nullable(),
+  sub_btns: z.array(z.object({
+    id: z.string(),
+    platform: z.string(),
+    label: z.string(),
+    url: z.string(),
+  })).nullable(),
   menu_button_id: z.number().nullable(),
   created_at: z.string(),
   updated_at: z.string(),

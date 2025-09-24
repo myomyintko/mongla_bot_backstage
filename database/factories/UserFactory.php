@@ -41,7 +41,7 @@ class UserFactory extends Factory
             'username' => $username,
             'avatar' => fake()->optional(0.3)->imageUrl(200, 200, 'people'),
             'email_verified_at' => fake()->optional(0.9)->dateTimeBetween('-1 year', 'now'),
-            'status' => fake()->randomElement([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_INVITED, User::STATUS_SUSPENDED]),
+            'status' => fake()->randomElement([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED]),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
@@ -120,16 +120,6 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => User::STATUS_INACTIVE,
-        ]);
-    }
-
-    /**
-     * Create an invited user.
-     */
-    public function invited(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'status' => User::STATUS_INVITED,
         ]);
     }
 

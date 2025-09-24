@@ -5,49 +5,30 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\MenuButton;
+use App\Services\MenuButton\MenuButtonServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class MenuButtonController extends Controller
 {
+    public function __construct(
+        private MenuButtonServiceInterface $menuButtonService
+    ) {}
     /**
      * Display a listing of menu buttons
      */
     public function index(Request $request): JsonResponse
     {
-        $query = MenuButton::with(['parent', 'children']);
+        $filters = [
+            'status' => $request->get('status'),
+            'button_type' => $request->get('button_type'),
+            'parent_id' => $request->get('parent_id'),
+            'search' => $request->get('search'),
+        ];
 
-        // Filter by status if provided
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by button_type if provided
-        if ($request->has('button_type')) {
-            $query->where('button_type', $request->button_type);
-        }
-
-        // Filter by parent_id if provided
-        if ($request->has('parent_id')) {
-            if ($request->parent_id === 'null') {
-                $query->whereNull('parent_id');
-            } elseif ($request->parent_id === 'not_null') {
-                $query->whereNotNull('parent_id');
-            } else {
-                $query->where('parent_id', $request->parent_id);
-            }
-        }
-
-        // Search by name
-        if ($request->has('search') && $request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%');
-        }
-
-        // Sort by sort field and then by created_at
-        $query->orderBy('sort')->orderBy('created_at');
-
-        $menuButtons = $query->paginate($request->get('per_page', 15));
+        $perPage = (int) $request->get('per_page', 15);
+        $menuButtons = $this->menuButtonService->getPaginated($filters, $perPage);
 
         return response()->json($menuButtons);
     }
@@ -69,13 +50,7 @@ class MenuButtonController extends Controller
             'sub_btns' => 'nullable|array',
         ]);
 
-        // Set default values
-        $validated['status'] = $validated['status'] ?? 1;
-        $validated['sort'] = $validated['sort'] ?? 0;
-        $validated['enable_template'] = $validated['enable_template'] ?? false;
-
-        $menuButton = MenuButton::create($validated);
-        $menuButton->load(['parent', 'children']);
+        $menuButton = $this->menuButtonService->create($validated);
 
         return response()->json($menuButton, 201);
     }
@@ -85,8 +60,6 @@ class MenuButtonController extends Controller
      */
     public function show(MenuButton $menuButton): JsonResponse
     {
-        $menuButton->load(['parent', 'children', 'descendants']);
-        
         return response()->json($menuButton);
     }
 
@@ -111,8 +84,7 @@ class MenuButtonController extends Controller
             'sub_btns' => 'nullable|array',
         ]);
 
-        $menuButton->update($validated);
-        $menuButton->load(['parent', 'children']);
+        $menuButton = $this->menuButtonService->update($menuButton, $validated);
 
         return response()->json($menuButton);
     }
@@ -122,16 +94,15 @@ class MenuButtonController extends Controller
      */
     public function destroy(MenuButton $menuButton): JsonResponse
     {
-        // Check if menu button has children
-        if ($menuButton->children()->count() > 0) {
+        try {
+            $this->menuButtonService->delete($menuButton);
+            
+            return response()->json(['message' => 'Menu button deleted successfully']);
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Cannot delete menu button with children. Please delete children first.'
+                'message' => $e->getMessage()
             ], 422);
         }
-
-        $menuButton->delete();
-
-        return response()->json(['message' => 'Menu button deleted successfully']);
     }
 
     /**
@@ -139,13 +110,7 @@ class MenuButtonController extends Controller
      */
     public function hierarchy(): JsonResponse
     {
-        $rootButtons = MenuButton::root()
-            ->active()
-            ->with(['children' => function ($query) {
-                $query->active()->orderBy('sort');
-            }])
-            ->orderBy('sort')
-            ->get();
+        $rootButtons = $this->menuButtonService->getHierarchy();
 
         return response()->json($rootButtons);
     }
@@ -163,12 +128,9 @@ class MenuButtonController extends Controller
             'updates.parent_id' => 'nullable|exists:menu_buttons,id',
         ]);
 
-        $updated = MenuButton::whereIn('id', $validated['ids'])
-            ->update($validated['updates']);
+        $result = $this->menuButtonService->bulkUpdate($validated['ids'], $validated['updates']);
 
-        return response()->json([
-            'message' => "Updated {$updated} menu buttons successfully"
-        ]);
+        return response()->json($result);
     }
 
     /**
@@ -181,21 +143,14 @@ class MenuButtonController extends Controller
             'ids.*' => 'exists:menu_buttons,id',
         ]);
 
-        // Check if any menu button has children
-        $buttonsWithChildren = MenuButton::whereIn('id', $validated['ids'])
-            ->whereHas('children')
-            ->count();
-
-        if ($buttonsWithChildren > 0) {
+        try {
+            $result = $this->menuButtonService->bulkDelete($validated['ids']);
+            
+            return response()->json($result);
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Cannot delete menu buttons that have children. Please delete children first.'
+                'message' => $e->getMessage()
             ], 422);
         }
-
-        $deleted = MenuButton::whereIn('id', $validated['ids'])->delete();
-
-        return response()->json([
-            'message' => "Deleted {$deleted} menu buttons successfully"
-        ]);
     }
 }

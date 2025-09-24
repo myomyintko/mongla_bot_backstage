@@ -30,6 +30,7 @@ interface AuthState {
     setupPassword: (password: string, passwordConfirmation: string) => Promise<void>
     logout: () => Promise<void>
     initialize: () => Promise<void>
+    refreshUser: () => Promise<void>
   }
 }
 
@@ -188,6 +189,20 @@ export const useAuthStore = create<AuthState>()((set, get) => {
             get().auth.reset()
           } finally {
             isInitializing = false
+          }
+        }
+      },
+      refreshUser: async () => {
+        const token = get().auth.accessToken
+        if (token) {
+          try {
+            const response = await authService.getUser()
+            set((state) => ({
+              ...state,
+              auth: { ...state.auth, user: response.user },
+            }))
+          } catch (error) {
+            console.error('Failed to refresh user:', error)
           }
         }
       },

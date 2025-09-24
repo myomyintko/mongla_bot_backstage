@@ -102,7 +102,7 @@ export function DataTableBulkActions({ table }: DataTableBulkActionsProps) {
               <AlertDialogAction
                 onClick={handleBulkDelete}
                 disabled={bulkDeleteMutation.isPending}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                variant="destructive"
               >
                 {bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete'}
               </AlertDialogAction>

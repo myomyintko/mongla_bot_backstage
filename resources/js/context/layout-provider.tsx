@@ -2,7 +2,7 @@ import { createContext, useContext, useState } from 'react'
 import { getCookie, setCookie } from '@/lib/cookies'
 
 export type Collapsible = 'offcanvas' | 'icon' | 'none'
-export type Variant = 'inset' | 'sidebar' | 'floating'
+export type Variant = 'sidebar' | 'floating' | 'inset'
 
 // Cookie constants following the pattern from sidebar.tsx
 const LAYOUT_COLLAPSIBLE_COOKIE_NAME = 'layout_collapsible'
@@ -10,8 +10,8 @@ const LAYOUT_VARIANT_COOKIE_NAME = 'layout_variant'
 const LAYOUT_COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
 
 // Default values
-const DEFAULT_VARIANT = 'inset'
-const DEFAULT_COLLAPSIBLE = 'icon'
+const DEFAULT_VARIANT: Variant = 'inset'
+const DEFAULT_COLLAPSIBLE: Collapsible = 'icon'
 
 type LayoutContextType = {
   resetLayout: () => void
@@ -76,7 +76,7 @@ export function LayoutProvider({ children }: LayoutProviderProps) {
 
 // Define the hook for the provider
 // eslint-disable-next-line react-refresh/only-export-components
-export function useLayout() {
+export function useLayout(): LayoutContextType {
   const context = useContext(LayoutContext)
   if (!context) {
     console.warn('useLayout must be used within a LayoutProvider')

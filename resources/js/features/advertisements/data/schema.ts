@@ -10,6 +10,12 @@ export const advertisementsSchema = z.object({
   start_date: z.string().nullable(),
   end_date: z.string().nullable(),
   frequency_cap_minutes: z.number().nullable(),
+  sub_btns: z.array(z.object({
+    id: z.string(),
+    platform: z.string(),
+    label: z.string().nullable().optional(),
+    url: z.string().nullable().optional(),
+  })).nullable(),
   created_at: z.string(),
   updated_at: z.string(),
   store: z.object({

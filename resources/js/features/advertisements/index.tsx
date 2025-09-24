@@ -70,16 +70,17 @@ export function Advertisements() {
           </div>
             <AdvertisementsPrimaryButtons />
         </div>
+
         <div className='-mx-4 flex-1 overflow-auto px-4 py-1 lg:flex-row lg:space-y-0 lg:space-x-12'>
-          <AdvertisementsTable 
-            data={advertisementsData?.data || []} 
+          <AdvertisementsTable
+            data={advertisementsData?.data || []}
               paginationMeta={advertisementsData ? {
               current_page: advertisementsData.current_page,
               last_page: advertisementsData.last_page,
               per_page: advertisementsData.per_page,
               total: advertisementsData.total,
             } : undefined}
-          />  
+          />
         </div>
       </Main>
 

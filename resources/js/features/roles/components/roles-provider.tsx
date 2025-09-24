@@ -27,10 +27,10 @@ export function useRoles() {
   if (context === undefined) {
     console.warn('useRoles must be used within a RolesProvider')
     return {
-      roles: [],
-      isLoading: false,
-      error: null,
-      refetch: () => {},
+      open: null,
+      setOpen: () => {},
+      currentRow: null,
+      setCurrentRow: () => {},
     }
   }
   return context

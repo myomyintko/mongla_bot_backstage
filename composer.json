@@ -10,14 +10,14 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "defstudio/telegraph": "^1.62",
         "endroid/qr-code": "^6.0",
         "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
-        "laravel/sanctum": "^4.2",
+        "laravel/sanctum": "*",
         "laravel/tinker": "^2.10.1",
         "owen-oj/laravel-getid3": "^2.4",
-        "phpoffice/phpspreadsheet": "^5.1",
-        "pragmarx/google2fa-laravel": "^2.3",
+        "pragmarx/google2fa": "^9.0",
         "pragmarx/google2fa-qrcode": "^3.0",
         "spatie/laravel-permission": "^6.21"
     },
@@ -62,6 +62,11 @@
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'"
+        ],
+        "dev:ssr": [
+            "npm run build:ssr",
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"php artisan inertia:start-ssr\" --names=server,queue,logs,ssr --kill-others"
         ],
         "test": [
             "@php artisan config:clear --ansi",

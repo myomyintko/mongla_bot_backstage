@@ -5,62 +5,29 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\User\UserServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    public function __construct(
+        private UserServiceInterface $userService
+    ) {}
     /**
      * Display a listing of users
      */
     public function index(Request $request): JsonResponse
     {
-        $query = User::with(['roles']);
+        $filters = [
+            'status' => $request->get('status'),
+            'role' => $request->get('role'),
+            'search' => $request->get('search'),
+        ];
 
-        // Filter by status if provided
-        if ($request->has('status') && is_array($request->status) && !empty($request->status)) {
-            $query->whereIn('status', $request->status);
-        }
-
-        // Filter by role if provided
-        if ($request->has('role') && is_array($request->role) && !empty($request->role)) {
-            $query->whereHas('roles', function ($q) use ($request) {
-                $q->whereIn('name', $request->role);
-            });
-        }
-
-        // Search by username, name, or email
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('username', 'like', '%' . $search . '%')
-                  ->orWhere('name', 'like', '%' . $search . '%')
-                  ->orWhere('email', 'like', '%' . $search . '%');
-            });
-        }
-
-        // Sort by created_at desc by default
-        $query->orderBy('created_at', 'desc');
-
-        $users = $query->paginate($request->get('per_page', 15));
-
-        // Transform the response to match frontend expectations
-        $users->getCollection()->transform(function ($user) {
-            return [
-                'id' => (string) $user->id,
-                'firstName' => explode(' ', $user->name)[0] ?? $user->name,
-                'lastName' => explode(' ', $user->name, 2)[1] ?? '',
-                'username' => $user->username,
-                'email' => $user->email,
-                'status' => $user->status,
-                'role' => $user->getRoleNames()->first() ?? 'Viewer',
-                'createdAt' => $user->created_at,
-                'updatedAt' => $user->updated_at,
-            ];
-        });
+        $perPage = (int) $request->get('per_page', 15);
+        $users = $this->userService->getPaginated($filters, $perPage);
 
         return response()->json($users);
     }
@@ -80,32 +47,11 @@ class UserController extends Controller
             'role' => 'required|string|exists:roles,name',
         ]);
 
-        $user = User::create([
-            'name' => trim($validated['firstName'] . ' ' . ($validated['lastName'] ?? '')),
-            'username' => $validated['username'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'status' => $validated['status'],
-            'password_setup_required' => true, // New users need to setup their password
-            'email_verified_at' => $validated['status'] === 'active' ? now() : null,
-        ]);
-
-        // Assign role
-        $user->assignRole($validated['role']);
+        $user = $this->userService->create($validated);
 
         return response()->json([
             'message' => 'User created successfully',
-            'user' => [
-                'id' => (string) $user->id,
-                'firstName' => explode(' ', $user->name)[0] ?? $user->name,
-                'lastName' => explode(' ', $user->name, 2)[1] ?? '',
-                'username' => $user->username,
-                'email' => $user->email,
-                'status' => $user->status,
-                'role' => $user->getRoleNames()->first() ?? 'Viewer',
-                'createdAt' => $user->created_at,
-                'updatedAt' => $user->updated_at,
-            ],
+            'user' => $this->userService->getUserRepository()->transformUserData($user),
         ], 201);
     }
 
@@ -114,17 +60,9 @@ class UserController extends Controller
      */
     public function show(User $user): JsonResponse
     {
-        return response()->json([
-            'id' => (string) $user->id,
-            'firstName' => explode(' ', $user->name)[0] ?? $user->name,
-            'lastName' => explode(' ', $user->name, 2)[1] ?? '',
-            'username' => $user->username,
-            'email' => $user->email,
-            'status' => $user->status,
-            'role' => $user->getRoleNames()->first() ?? 'viewer',
-            'createdAt' => $user->created_at,
-            'updatedAt' => $user->updated_at,
-        ]);
+        return response()->json(
+            $this->userService->getUserRepository()->transformUserData($user)
+        );
     }
 
     /**
@@ -142,54 +80,11 @@ class UserController extends Controller
             'role' => 'required|string|exists:roles,name',
         ]);
 
-        $updateData = [
-            'name' => trim($validated['firstName'] . ' ' . ($validated['lastName'] ?? '')),
-            'username' => $validated['username'],
-            'email' => $validated['email'],
-            'status' => $validated['status'],
-        ];
-
-        // Only update password if provided
-        if (!empty($validated['password'])) {
-            $updateData['password'] = Hash::make($validated['password']);
-        }
-
-        // Update email verification based on status
-        if ($validated['status'] === 'active' && !$user->email_verified_at) {
-            $updateData['email_verified_at'] = now();
-        } elseif ($validated['status'] !== 'active' && $user->email_verified_at) {
-            $updateData['email_verified_at'] = null;
-        }
-
-        // Check if status is being changed to SUSPENDED (before updating)
-        $wasSuspended = $user->status === User::STATUS_SUSPENDED;
-        $willBeSuspended = $validated['status'] === User::STATUS_SUSPENDED;
-        
-        // If user is being suspended, revoke all their tokens (force logout) BEFORE updating status
-        if (!$wasSuspended && $willBeSuspended) {
-            $user->tokens()->delete();
-            // Also clear remember_token to ensure complete logout
-            $user->update(['remember_token' => null]);
-        }
-        
-        $user->update($updateData);
-
-        // Update role
-        $user->syncRoles([$validated['role']]);
+        $user = $this->userService->update($user, $validated);
 
         return response()->json([
             'message' => 'User updated successfully',
-            'user' => [
-                'id' => (string) $user->id,
-                'firstName' => explode(' ', $user->name)[0] ?? $user->name,
-                'lastName' => explode(' ', $user->name, 2)[1] ?? '',
-                'username' => $user->username,
-                'email' => $user->email,
-                'status' => $user->status,
-                'role' => $user->getRoleNames()->first() ?? 'Viewer',
-                'createdAt' => $user->created_at,
-                'updatedAt' => $user->updated_at,
-            ],
+            'user' => $this->userService->getUserRepository()->transformUserData($user),
         ]);
     }
 
@@ -198,18 +93,17 @@ class UserController extends Controller
      */
     public function destroy(User $user): JsonResponse
     {
-        // Prevent deleting the last super admin
-        if ($user->hasRole('Super Admin') && User::role('Super Admin')->count() <= 1) {
+        try {
+            $this->userService->delete($user);
+            
             return response()->json([
-                'message' => 'Cannot delete the last Super Admin user',
+                'message' => 'User deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
             ], 422);
         }
-
-        $user->delete();
-
-        return response()->json([
-            'message' => 'User deleted successfully',
-        ]);
     }
 
     /**
@@ -223,25 +117,9 @@ class UserController extends Controller
             'status' => 'required|integer|in:1,2,4',
         ]);
 
-        $users = User::whereIn('id', $validated['user_ids'])->get();
+        $result = $this->userService->bulkUpdate($validated['user_ids'], $validated);
 
-        foreach ($users as $user) {
-            $updateData = ['status' => $validated['status']];
-            
-            // Update email verification based on status
-            if ($validated['status'] === 'active' && !$user->email_verified_at) {
-                $updateData['email_verified_at'] = now();
-            } elseif ($validated['status'] !== 'active' && $user->email_verified_at) {
-                $updateData['email_verified_at'] = null;
-            }
-
-            $user->update($updateData);
-        }
-
-        return response()->json([
-            'message' => 'Users updated successfully',
-            'updated_count' => $users->count(),
-        ]);
+        return response()->json($result);
     }
 
     /**
@@ -254,26 +132,15 @@ class UserController extends Controller
             'user_ids.*' => 'exists:users,id',
         ]);
 
-        $users = User::whereIn('id', $validated['user_ids'])->get();
-
-        // Check if any of the users to delete are the last Super Admin
-        $superAdmins = $users->filter(fn($user) => $user->hasRole('Super Admin'));
-        if ($superAdmins->count() > 0 && User::role('Super Admin')->count() <= $superAdmins->count()) {
+        try {
+            $result = $this->userService->bulkDelete($validated['user_ids']);
+            
+            return response()->json($result);
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Cannot delete the last Super Admin user(s)',
+                'message' => $e->getMessage(),
             ], 422);
         }
-
-        $deletedCount = 0;
-        foreach ($users as $user) {
-            $user->delete();
-            $deletedCount++;
-        }
-
-        return response()->json([
-            'message' => 'Users deleted successfully',
-            'deleted_count' => $deletedCount,
-        ]);
     }
 
     /**
@@ -281,23 +148,14 @@ class UserController extends Controller
      */
     public function roles(): JsonResponse
     {
-        $roles = Role::all()->map(function ($role) {
-            return [
-                'value' => $role->name,
-                'label' => $role->name,
-            ];
-        });
+        $roles = $this->userService->getRoles();
 
         return response()->json($roles);
     }
 
     public function statuses(): JsonResponse
     {
-        $statuses = [
-            ['value' => '1', 'label' => 'Active'],
-            ['value' => '2', 'label' => 'Inactive'],
-            ['value' => '4', 'label' => 'Suspended'],
-        ];
+        $statuses = $this->userService->getStatuses();
 
         return response()->json($statuses);
     }

@@ -12,7 +12,7 @@ return new class extends Migration {
     {
         Schema::create('stores', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->unique();
             $table->longText('description')->nullable();
             $table->string('media_url')->nullable();
             $table->json('menu_urls')->nullable();
@@ -25,7 +25,6 @@ return new class extends Migration {
             $table->foreignId('menu_button_id')->nullable()->constrained('menu_buttons')->nullOnDelete();
             $table->timestamps();
 
-            $table->index('name');
             $table->index('status', 'stores_status_index');
             $table->index('recommand', 'stores_recommand_index');
             $table->index('created_at');

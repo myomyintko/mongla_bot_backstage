@@ -1,10 +1,13 @@
 import { DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { type ColumnDef } from '@tanstack/react-table'
+import { Calendar, Zap } from 'lucide-react'
 import { statuses } from '../data/data'
 import { type Advertisement } from '../data/schema'
 import { DataTableRowActions } from './data-table-row-actions'
+import { AdvertisementStatusControl } from './advertisement-status-control'
 
 export const advertisementsColumns: ColumnDef<Advertisement>[] = [
   {
@@ -175,37 +178,11 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
   {
     accessorKey: 'status',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Status' />
+      <DataTableColumnHeader column={column} title='Status & Control' />
     ),
     cell: ({ row }) => {
-      const status = statuses.find(
-        (status) => status.value === String(row.getValue('status'))
-      )
-
-      if (!status) {
-        return (
-          <Badge variant="outline" className="text-muted-foreground">
-            Unknown
-          </Badge>
-        )
-      }
-
-      return (
-        <Badge 
-          variant={
-            status.value === '1' ? 'default' : 
-            status.value === '2' ? 'secondary' : 
-            'destructive'
-          }
-          className={
-            status.value === '1' ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200' :
-            status.value === '2' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200' :
-            'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200'
-          }
-        >
-          {status.label}
-        </Badge>
-      )
+      const advertisement = row.original
+      return <AdvertisementStatusControl advertisement={advertisement} />
     },
     filterFn: (row, id, value) => {
       return value.includes(String(row.getValue(id)))
@@ -253,24 +230,71 @@ export const advertisementsColumns: ColumnDef<Advertisement>[] = [
   {
     accessorKey: 'frequency_cap_minutes',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Frequency Cap' />
+      <DataTableColumnHeader column={column} title='Schedule & Frequency' />
     ),
     cell: ({ row }) => {
       const frequency = row.getValue('frequency_cap_minutes') as number | null
-      
-      if (!frequency) {
-        return (
-          <Badge variant="outline" className="text-muted-foreground bg-gray-50 dark:bg-gray-800">
-            Not set
-          </Badge>
-        )
-      }
-      
+      const advertisement = row.original
+      const startDate = advertisement.start_date ? new Date(advertisement.start_date) : null
+      const endDate = advertisement.end_date ? new Date(advertisement.end_date) : null
+      const now = new Date()
+
+      // Calculate schedule status - must consider advertisement status
+      const hasStarted = !startDate || now >= startDate
+      const hasEnded = endDate && now > endDate
+      const isActive = advertisement.status === 1
+
       return (
-        <div className='flex items-center space-x-1'>
-          <span className='text-sm font-medium'>{frequency}</span>
-          <span className='text-xs text-muted-foreground'>min</span>
-        </div>
+        <TooltipProvider>
+          <div className='flex flex-col space-y-1'>
+            {/* Frequency Display */}
+            <div className='flex items-center space-x-1'>
+              <Zap className="w-3 h-3 text-blue-500" />
+              {frequency ? (
+                <span className='text-sm font-medium'>
+                  Every {frequency} min{frequency > 1 ? 's' : ''}
+                </span>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground text-xs">
+                  Not set
+                </Badge>
+              )}
+            </div>
+
+            {/* Schedule Status */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className='flex items-center space-x-1 cursor-help'>
+                  <Calendar className="w-3 h-3 text-gray-500" />
+                  <span className={`text-xs ${
+                    hasEnded ? 'text-red-600' :
+                    (hasStarted && isActive) ? 'text-green-600' :
+                    (hasStarted && !isActive) ? 'text-gray-600' :
+                    'text-yellow-600'
+                  }`}>
+                    {hasEnded ? 'Ended' :
+                     (hasStarted && isActive) ? 'Running' :
+                     (hasStarted && !isActive) ? 'Paused' :
+                     'Scheduled'}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  {startDate && (
+                    <p>Start: {startDate.toLocaleString()}</p>
+                  )}
+                  {endDate && (
+                    <p>End: {endDate.toLocaleString()}</p>
+                  )}
+                  {frequency && (
+                    <p>Sends every {frequency} minute{frequency > 1 ? 's' : ''}</p>
+                  )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       )
     },
   },

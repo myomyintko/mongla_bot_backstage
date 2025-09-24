@@ -20,6 +20,7 @@ return new class extends Migration {
             $table->timestamp('start_date')->nullable();
             $table->timestamp('end_date')->nullable();
             $table->integer('frequency_cap_minutes')->nullable();
+            $table->json('sub_btns')->nullable();
             $table->timestamps();
 
             $table->index('store_id');

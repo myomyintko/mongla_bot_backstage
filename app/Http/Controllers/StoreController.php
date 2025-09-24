@@ -5,52 +5,31 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Store;
+use App\Services\Store\StoreServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Carbon\Carbon;
 
 class StoreController extends Controller
 {
+    public function __construct(
+        private StoreServiceInterface $storeService
+    ) {}
     /**
      * Display a listing of stores
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Store::with(['menuButton']);
+        $filters = [
+            'status' => $request->get('status'),
+            'recommand' => $request->boolean('recommand'),
+            'menu_button_id' => $request->get('menu_button_id'),
+            'search' => $request->get('search'),
+        ];
 
-        // Filter by status if provided
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Filter by recommendation if provided
-        if ($request->has('recommand')) {
-            $query->where('recommand', $request->boolean('recommand'));
-        }
-
-        // Filter by menu_button_id if provided
-        if ($request->has('menu_button_id')) {
-            if ($request->menu_button_id === 'null' || $request->menu_button_id === 'none') {
-                $query->whereNull('menu_button_id');
-            } elseif ($request->menu_button_id !== 'all') {
-                $query->where('menu_button_id', $request->menu_button_id);
-            }
-            // If 'all', don't apply any filter (show all stores)
-        }
-
-        // Search by name or address
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('address', 'like', '%' . $search . '%');
-            });
-        }
-
-        // Sort by recommendation first, then by created_at
-        $query->orderBy('recommand', 'desc')->orderBy('created_at', 'desc');
-
-        $stores = $query->paginate($request->get('per_page', 15));
+        $perPage = (int) $request->get('per_page', 15);
+        $stores = $this->storeService->getPaginated($filters, $perPage);
 
         return response()->json($stores);
     }
@@ -79,8 +58,7 @@ class StoreController extends Controller
         $validated['status'] = $validated['status'] ?? 1;
         $validated['recommand'] = $validated['recommand'] ?? false;
 
-        $store = Store::create($validated);
-        $store->load(['menuButton']);
+        $store = $this->storeService->create($validated);
 
         return response()->json($store, 201);
     }
@@ -90,7 +68,6 @@ class StoreController extends Controller
      */
     public function show(Store $store): JsonResponse
     {
-        $store->load(['menuButton']);
         return response()->json($store);
     }
 
@@ -166,6 +143,89 @@ class StoreController extends Controller
         return response()->json([
             'message' => "Successfully deleted {$deleted} stores",
             'deleted_count' => $deleted
+        ]);
+    }
+
+    /**
+     * Get store statistics for dashboard
+     */
+    public function stats(): JsonResponse
+    {
+        $totalStores = Store::count();
+        $activeStores = Store::where('status', 1)->count();
+        $newStoresToday = Store::whereDate('created_at', Carbon::today())->count();
+        // Mock revenue based on store count (more realistic than random)
+        $revenue = $activeStores * 2500; // Fixed amount per store for consistency
+
+        return response()->json([
+            'total_stores' => $totalStores,
+            'active_stores' => $activeStores,
+            'new_stores_today' => $newStoresToday,
+            'revenue' => $revenue,
+        ]);
+    }
+
+    /**
+     * Get top performing stores
+     */
+    public function topPerforming(): JsonResponse
+    {
+        $stores = Store::select(['id', 'name'])
+            ->where('status', 1)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($store, $index) {
+                // Generate consistent mock data based on store ID
+                $baseSales = ($store->id * 100) + 5000;
+                $baseViews = ($store->id * 50) + 1000;
+
+                return [
+                    'id' => $store->id,
+                    'name' => $store->name,
+                    'sales' => $baseSales,
+                    'views' => $baseViews,
+                ];
+            });
+
+        return response()->json([
+            'data' => $stores
+        ]);
+    }
+
+    /**
+     * Get store status breakdown
+     */
+    public function statusBreakdown(): JsonResponse
+    {
+        $active = Store::where('status', 1)->count();
+        $inactive = Store::where('status', 0)->count();
+
+        return response()->json([
+            'active' => $active,
+            'inactive' => $inactive,
+        ]);
+    }
+
+    /**
+     * Get recent store activity
+     */
+    public function recentActivity(): JsonResponse
+    {
+        $activities = Store::select(['id', 'name', 'status', 'updated_at'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($store) {
+                return [
+                    'name' => $store->name,
+                    'action' => $store->status ? 'Store activated' : 'Store deactivated',
+                    'time' => $store->updated_at->diffForHumans(),
+                ];
+            });
+
+        return response()->json([
+            'data' => $activities
         ]);
     }
 

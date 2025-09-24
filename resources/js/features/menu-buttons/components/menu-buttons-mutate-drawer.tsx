@@ -21,12 +21,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { useTheme } from '@/context/theme-provider'
 import { type MediaLibraryItem } from '@/services/media-library-service'
 import { menuButtonsService } from '@/services/menu-buttons-service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import MDEditor from '@uiw/react-md-editor'
+import { TelegramEditor } from '@/components/telegram-editor'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -59,7 +58,6 @@ export function MenuButtonsMutateDrawer({
   currentRow,
 }: MenuButtonsMutateDrawerProps) {
   const isUpdate = !!currentRow
-  const { resolvedTheme } = useTheme()
   const queryClient = useQueryClient()
   const [deletedFiles, setDeletedFiles] = useState<string[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
@@ -301,7 +299,7 @@ export function MenuButtonsMutateDrawer({
         onOpenChange(v)
       }}
     >
-      <SheetContent className='flex flex-col'>
+      <SheetContent className='flex flex-col w-full sm:w-3/4 sm:max-w-2xl'>
         <SheetHeader className='text-start'>
           <SheetTitle>{isUpdate ? 'Update' : 'Create'} Menu Button</SheetTitle>
           <SheetDescription>
@@ -474,13 +472,11 @@ export function MenuButtonsMutateDrawer({
                   <FormLabel>Template Content</FormLabel>
                   <FormControl>
                     <div className="mt-2">
-                      <MDEditor
+                      <TelegramEditor
                         value={field.value || ''}
                         onChange={(value) => field.onChange(value || '')}
-                        data-color-mode={resolvedTheme}
+                        placeholder="Enter template content..."
                         height={300}
-                        preview="edit"
-                        hideToolbar={false}
                       />
                     </div>
                   </FormControl>
@@ -500,27 +496,15 @@ export function MenuButtonsMutateDrawer({
             form='menu-buttons-form' 
             type='submit'
             disabled={createMutation.isPending || updateMutation.isPending}
-            onClick={() => {
-              console.log('Submit button clicked');
-              console.log('Form state:', form.formState);
-              console.log('Form values:', form.getValues());
-              console.log('Form values - media_url:', form.getValues('media_url'));
-              console.log('Form values - media_url[0]:', form.getValues('media_url')?.[0]);
-              console.log('Form values - name:', form.getValues('name'));
-              console.log('Form values - button_type:', form.getValues('button_type'));
-              
-              // Try manual form submission
-              console.log('About to call form.handleSubmit(onSubmit)');
+            onClick={() => {              
               form.handleSubmit(
                 (data) => {
-                  console.log('Form validation passed, calling onSubmit');
                   onSubmit(data);
                 },
                 (errors) => {
                   console.log('Form validation failed with errors:', errors);
                 }
               )();
-              console.log('form.handleSubmit(onSubmit) completed');
             }}
           >
             {createMutation.isPending || updateMutation.isPending 

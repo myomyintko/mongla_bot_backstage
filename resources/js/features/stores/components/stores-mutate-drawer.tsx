@@ -1,6 +1,7 @@
 import { MultiMediaUploader } from '@/components/multi-media-uploader'
 import { InfiniteSearchableSelect } from '@/components/infinite-searchable-select'
 import { SelectDropdown } from '@/components/select-dropdown'
+import { SocialButtonsField } from '@/components/form/social-buttons-field'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -27,7 +28,7 @@ import { menuButtonsService } from '@/services/menu-buttons-service'
 import { storesService } from '@/services/stores-service'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import MDEditor from '@uiw/react-md-editor'
+import { TelegramEditor } from '@/components/telegram-editor'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -52,7 +53,12 @@ const formSchema = z.object({
   recommand: z.boolean().optional(),
   media_url: z.array(z.string()).min(1, 'At least one media file is required.'),
   menu_urls: z.array(z.string()).optional(),
-  sub_btns: z.array(z.string()).nullable().optional(),
+  sub_btns: z.array(z.object({
+    id: z.string(),
+    platform: z.string(),
+    label: z.string(),
+    url: z.string()
+  })).optional(),
   menu_button_id: z.string().min(1, 'Please select a category.'),
 })
 type StoreForm = z.infer<typeof formSchema>
@@ -160,7 +166,7 @@ export function StoresMutateDrawer({
       recommand: false,
       media_url: [],
       menu_urls: [],
-      sub_btns: null,
+      sub_btns: [],
       menu_button_id: '',
     },
   })
@@ -186,7 +192,7 @@ export function StoresMutateDrawer({
             ? url 
             : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${url}`
         ) : [],
-        sub_btns: currentRow.sub_btns,
+        sub_btns: currentRow.sub_btns ? (typeof currentRow.sub_btns === 'string' ? JSON.parse(currentRow.sub_btns) : currentRow.sub_btns) : [],
         menu_button_id: currentRow.menu_button_id ? String(currentRow.menu_button_id) : '',
       } : {
         name: '',
@@ -198,7 +204,7 @@ export function StoresMutateDrawer({
         recommand: false,
         media_url: [],
         menu_urls: [],
-        sub_btns: null,
+        sub_btns: [],
         menu_button_id: '',
       }
       
@@ -219,7 +225,7 @@ export function StoresMutateDrawer({
       recommand: data.recommand || false,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
       menu_urls: data.menu_urls || undefined,
-      sub_btns: data.sub_btns || undefined,
+      sub_btns: data.sub_btns || null,
       menu_button_id: data.menu_button_id ? Number(data.menu_button_id) : null,
     }),
     onSuccess: async () => {
@@ -246,7 +252,7 @@ export function StoresMutateDrawer({
       recommand: data.recommand || false,
       media_url: data.media_url && data.media_url.length > 0 ? data.media_url[0] : null,
       menu_urls: data.menu_urls || null,
-      sub_btns: data.sub_btns || undefined,
+      sub_btns: data.sub_btns || null,
       menu_button_id: data.menu_button_id ? Number(data.menu_button_id) : null,
     }),
     onSuccess: async () => {
@@ -282,7 +288,7 @@ export function StoresMutateDrawer({
         onOpenChange(v)
       }}
     >
-      <SheetContent className='flex flex-col'>
+      <SheetContent className='flex flex-col w-full sm:w-3/4 sm:max-w-2xl'>
         <SheetHeader className='text-start'>
           <SheetTitle>{isUpdate ? 'Update' : 'Create'} Store</SheetTitle>
           <SheetDescription>
@@ -320,13 +326,11 @@ export function StoresMutateDrawer({
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <div className="mt-2">
-                      <MDEditor
+                      <TelegramEditor
                         value={field.value || ''}
                         onChange={(value) => field.onChange(value || '')}
-                        data-color-mode={resolvedTheme}
+                        placeholder="Enter store description..."
                         height={300}
-                        preview="edit"
-                        hideToolbar={false}
                       />
                     </div>
                   </FormControl>
@@ -515,6 +519,12 @@ export function StoresMutateDrawer({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+            
+            {/* Social Media Buttons */}
+            <SocialButtonsField
+              name="sub_btns"
+              label="Social Media Buttons"
             />
           </form>
         </Form>
