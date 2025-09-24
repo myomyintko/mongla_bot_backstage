@@ -23,7 +23,7 @@ class StoreController extends Controller
     {
         $filters = [
             'status' => $request->get('status'),
-            'recommand' => $request->boolean('recommand'),
+            'recommand' => $request->has('recommand') ? $request->boolean('recommand') : null,
             'menu_button_id' => $request->get('menu_button_id'),
             'search' => $request->get('search'),
         ];

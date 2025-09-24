@@ -15,12 +15,12 @@ class StoreRepository implements StoreRepositoryInterface
         $query = Store::with(['menuButton']);
 
         // Filter by status if provided
-        if (isset($filters['status'])) {
+        if (isset($filters['status']) && $filters['status'] !== null && $filters['status'] !== '') {
             $query->where('status', $filters['status']);
         }
 
         // Filter by recommendation if provided
-        if (isset($filters['recommand'])) {
+        if (isset($filters['recommand']) && $filters['recommand'] !== null) {
             $query->where('recommand', $filters['recommand']);
         }
 
