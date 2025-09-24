@@ -49,6 +49,7 @@ class CallbackHandler
             str_starts_with($callbackData, 'store_detail_') => $this->handleStoreDetailWithContext($callbackData),
             str_starts_with($callbackData, 'store_menu_') => $this->handleStoreMenu($callbackData),
             str_starts_with($callbackData, 'menu_stores_') => $this->handleMenuStoresPagination($callbackData),
+            str_starts_with($callbackData, 'back_to_store_') => $this->handleBackToStore($callbackData),
             str_starts_with($callbackData, 'back_to_') => $this->handleBackNavigation($callbackData),
             str_starts_with($callbackData, 'menu_') => $this->handleMenuButton($callbackData),
             $callbackData === 'show_trending' => $this->showTrendingStores(),
@@ -80,6 +81,41 @@ class CallbackHandler
         $this->showStoreDetail($storeId, $context);
     }
 
+    protected function handleBackToStore(string $callbackData): void
+    {
+        // Parse callback data: back_to_store_{storeId}
+        $storeId = (int) str_replace('back_to_store_', '', $callbackData);
+
+        Log::info('Back to store navigation', [
+            'store_id' => $storeId,
+            'callback_data' => $callbackData
+        ]);
+
+        // Delete both the back button message and the media group
+        $this->deleteCurrentMessage();
+
+        // Also attempt to delete previous messages (media group)
+        // We'll delete the last 5 messages to ensure we get the media group
+        $currentMessageId = $this->callbackQuery->message()->id();
+        for ($i = 1; $i <= 5; $i++) {
+            try {
+                $this->chat->deleteMessage($currentMessageId - $i)->send();
+            } catch (\Exception $e) {
+                // Ignore deletion failures for messages that don't exist or can't be deleted
+                Log::debug('Could not delete message', [
+                    'message_id' => $currentMessageId - $i,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        // Get the stored context for proper back navigation
+        $source = $this->getStoredStoreContext($storeId);
+
+        // Re-show the store detail with restored context
+        $this->restoreStoreDetail($storeId, $source);
+    }
+
     protected function handleBackNavigation(string $callbackData): void
     {
         // Parse callback data: back_to_{context}
@@ -109,8 +145,10 @@ class CallbackHandler
     protected function handleStoreMenu(string $callbackData): void
     {
         $storeId = (int) str_replace('store_menu_', '', $callbackData);
-        
-        
+
+        // Delete the store detail message first
+        $this->deleteCurrentMessage();
+
         $this->showStoreMenu($storeId);
     }
 
@@ -192,8 +230,10 @@ class CallbackHandler
     protected function showStoreDetail(int $storeId, string $source = 'trending'): void
     {
         $messageId = $this->callbackQuery->message()->id();
-        
-        
+
+        // Store the context in session for back navigation from menu
+        $this->storeStoreContext($storeId, $source);
+
         // Delete the current message (the list)
         try {
             $this->chat->deleteMessage($messageId)->send();
@@ -205,7 +245,6 @@ class CallbackHandler
 
         if ($storeResponse['success'] && $storeResponse['data']) {
             $store = $storeResponse['data'];
-
 
             $userVariables = $this->getUserVariables();
             $userVariables['storeName'] = $store['name'];
@@ -523,16 +562,16 @@ class CallbackHandler
     {
         // Get store details
         $storeResponse = $this->telegraphBotService->getStoreDetails($storeId);
-        
+
         if (!$storeResponse['success'] || !$storeResponse['data']) {
             $this->chat->message("❌ Store not found or error occurred.")
                 ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
             return;
         }
-        
+
         $store = $storeResponse['data'];
-        
+
         // Check if store has menu_urls
         if (empty($store['menu_urls']) || !is_array($store['menu_urls']) || count($store['menu_urls']) === 0) {
             $this->chat->message("❌ No menu available for this store.")
@@ -540,27 +579,35 @@ class CallbackHandler
                 ->send();
             return;
         }
-        
-        
+
         try {
             $mediaGroup = $this->prepareMediaGroup($store['menu_urls'], $storeId);
-            
+
             if (empty($mediaGroup)) {
                 $this->chat->message("❌ No valid menu files found.")
                     ->keyboard(KeyboardBuilder::backToMenu())
                     ->send();
                 return;
             }
-            
-            // Send media group
+
+            // Send media group first
             $this->chat->mediaGroup($mediaGroup)->send();
-            
+
+            // Then send a message with back button
+            $backKeyboard = Keyboard::make()->buttons([
+                Button::make('🔙 Back to Store')->action("back_to_store_{$storeId}")
+            ]);
+
+            $this->chat->message("📋 *Store Menu*\n\nUse the back button below to return to store details.")
+                ->keyboard($backKeyboard)
+                ->send();
+
         } catch (\Exception $e) {
             Log::error('Failed to send store menu', [
                 'store_id' => $storeId,
                 'error' => $e->getMessage()
             ]);
-            
+
             $this->chat->message("❌ Failed to load menu. Please try again later.")
                 ->keyboard(KeyboardBuilder::backToMenu())
                 ->send();
@@ -727,5 +774,74 @@ class CallbackHandler
             'botName' => $bot ? $bot->name : 'Bot',
             'botUsername' => $bot ? '@' . $bot->username : '@bot',
         ];
+    }
+
+    /**
+     * Store store context in session for back navigation
+     */
+    protected function storeStoreContext(int $storeId, string $source): void
+    {
+        $chatId = $this->chat->chat_id;
+        $key = "store_context_{$chatId}_{$storeId}";
+
+        // Store in cache for 1 hour
+        cache()->put($key, $source, now()->addHour());
+
+        Log::info('Stored store context', [
+            'store_id' => $storeId,
+            'source' => $source,
+            'chat_id' => $chatId
+        ]);
+    }
+
+    /**
+     * Get stored store context from session
+     */
+    protected function getStoredStoreContext(int $storeId): string
+    {
+        $chatId = $this->chat->chat_id;
+        $key = "store_context_{$chatId}_{$storeId}";
+
+        $source = cache()->get($key, 'trending'); // Default to trending
+
+        Log::info('Retrieved store context', [
+            'store_id' => $storeId,
+            'source' => $source,
+            'chat_id' => $chatId
+        ]);
+
+        return $source;
+    }
+
+    /**
+     * Restore store detail without deleting previous message
+     */
+    protected function restoreStoreDetail(int $storeId, string $source): void
+    {
+        $storeResponse = $this->telegraphBotService->getStoreDetails($storeId);
+
+        if ($storeResponse['success'] && $storeResponse['data']) {
+            $store = $storeResponse['data'];
+
+            $userVariables = $this->getUserVariables();
+            $userVariables['storeName'] = $store['name'];
+            $userVariables['storeDescription'] = $store['description'] ?? '';
+            $userVariables['storeAddress'] = $store['address'] ?? '';
+            $userVariables['storeHours'] = ($store['open_hour'] && $store['close_hour']) ? "{$store['open_hour']} - {$store['close_hour']}" : '';
+            $userVariables['storeCategory'] = $store['menu_button']['name'] ?? '';
+            $userVariables['storeStatus'] = $store['status'] ? '✅ Active' : '❌ Inactive';
+            $storeText = $this->telegraphBotService->getTemplateContent('store_detail', $userVariables);
+
+            // Create keyboard with social media buttons
+            $subBtns = $store['sub_btns'] ?? [];
+            $backKeyboard = $this->createKeyboardWithSocialButtons($source, $storeId, $subBtns);
+
+            // Send message with or without media
+            $this->sendStoreMessage($store, $storeText, $backKeyboard, $storeId, $source);
+        } else {
+            $this->chat->message("❌ Store not found or error occurred.")
+                ->keyboard(KeyboardBuilder::backToMenu())
+                ->send();
+        }
     }
 }
