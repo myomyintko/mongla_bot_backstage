@@ -17,6 +17,7 @@ import { ThemeProvider } from './context/theme-provider'
 import { PermissionProvider } from './context/permission-context'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
+// Import CSS at the end to override injected styles
 import './styles/index.css'
 
 const queryClient = new QueryClient({

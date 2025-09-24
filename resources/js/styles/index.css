@@ -2,6 +2,13 @@
 @import 'tw-animate-css';
 @import './theme.css';
 
+/* Ensure Tailwind utilities have higher priority */
+@layer utilities {
+  .border-border {
+    border-color: var(--border) !important;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @layer base {

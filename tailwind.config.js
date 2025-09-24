@@ -7,6 +7,7 @@ export default {
     "./resources/**/*.ts",
     "./resources/**/*.tsx",
   ],
+  important: '#root', // Use root selector for specificity
   theme: {
     extend: {},
   },
